@@ -1,0 +1,51 @@
+name: Promote And Deploy Prod (CD)
+
+on:
+  push:
+    branches: [ "develop-infra" ]
+    workflow_dispatch:
+
+jobs:
+  deploy-prod:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Docker Hub login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Pull dev image
+        run: docker pull ${{ secrets.DOCKERHUB_USERNAME }}/oauth-app:dev
+
+      - name: Tag dev as prod
+        run: docker tag ${{ secrets.DOCKERHUB_USERNAME }}/oauth-app:dev ${{ secrets.DOCKERHUB_USERNAME }}/oauth-app:prod
+
+      - name: Push prod image
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/oauth-app:prod
+
+      - name: Deploy to VM over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/oauth-app:prod
+            docker stop oauth-app || true
+            docker rm oauth-app || true
+            
+            docker run -d \
+              -p 8080:8080 \
+              --name oauth-app \
+              --restart always \
+              -e DB_HOST="${{ secrets.DB_HOST }}" \
+              -e DB_NAME="${{ secrets.DB_NAME }}" \
+              -e DB_USER="${{ secrets.DB_USER }}" \
+              -e DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+              ${{ secrets.DOCKERHUB_USERNAME }}/oauth-app:prod
+            
+            docker image prune -f
