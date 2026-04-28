@@ -2,8 +2,7 @@ name: Build Dev Image (CI)
 
 on:
   push:
-    # 테스트용 브랜치
-    branches: [ "develop-infra" ]
+    branches: [ "develop" ]
 
 jobs:
   build-dev:

@@ -2,7 +2,7 @@ name: Promote And Deploy Prod (CD)
 
 on:
   push:
-    branches: [ "develop-infra" ]
+    branches: [ "develop" ]
     workflow_dispatch:
 
 jobs:
