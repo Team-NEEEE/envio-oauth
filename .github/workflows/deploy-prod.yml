@@ -1,17 +1,20 @@
 name: Promote And Deploy Prod (CD)
 
 on:
-  push:
+  workflow_run:
+    workflows: [ "Build Dev Image (CI)" ]
+    types: [ completed ]
     branches: [ "develop" ]
-    workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
   deploy-prod:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: Docker Hub login
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -32,6 +35,19 @@ jobs:
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            set -e
+
+            DEPLOY_DIR="$HOME/envio-oauth"
+            mkdir -p "$DEPLOY_DIR"
+            cd "$DEPLOY_DIR"
+
+            cat > .env.raw <<'ENV_FILE'
+            ${{ secrets.ENV_FILE }}
+            ENV_FILE
+            grep -vE '^\s*(#|$)' .env.raw > .env
+            rm .env.raw
+            chmod 600 .env
+
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
             
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/oauth-app:prod
@@ -42,10 +58,7 @@ jobs:
               -p 8080:8080 \
               --name oauth-app \
               --restart always \
-              -e DB_HOST="${{ secrets.DB_HOST }}" \
-              -e DB_NAME="${{ secrets.DB_NAME }}" \
-              -e DB_USER="${{ secrets.DB_USER }}" \
-              -e DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+              --env-file "$DEPLOY_DIR/.env" \
               ${{ secrets.DOCKERHUB_USERNAME }}/oauth-app:prod
             
             docker image prune -f
