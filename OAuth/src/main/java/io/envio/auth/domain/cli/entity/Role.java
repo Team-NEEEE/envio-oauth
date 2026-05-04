@@ -1,4 +1,4 @@
-package io.envio.auth.domain.envioCli.entity;
+package io.envio.auth.domain.cli.entity;
 
 public enum Role{
     OWNER, //조직 소유자
