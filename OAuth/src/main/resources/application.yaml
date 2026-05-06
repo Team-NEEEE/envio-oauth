@@ -39,6 +39,18 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD}
 
+  security:
+    oauth2:
+      client:
+        registration:
+          github:
+            client-id: ${GITHUB_CLIENT_ID}
+            client-secret: ${GITHUB_CLIENT_SECRET}
+            redirect-uri: ${GITHUB_REDIRECT_URI:http://localhost:8080/login/oauth2/code/github}
+            scope:
+              - read:user
+              - user:email
+
   sql:
     init:
       mode: always
@@ -70,7 +82,12 @@ management:
   endpoints:
     web:
       exposure:
-        include: caches, metrics
+        include: health, info
+
+cors:
+  allowed-origins:
+    - http://localhost:3000
+    - http://localhost:5173
 
 springdoc:
   swagger-ui:
