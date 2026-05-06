@@ -1,5 +1,9 @@
 package io.envio.auth.common.security;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class SecurityConstants {
 
 	public static final String[] PUBLIC_URLS = {
@@ -14,7 +18,4 @@ public final class SecurityConstants {
 		"/api/auth/oauth/**",
 		"/api/auth/refresh"
 	};
-
-	private SecurityConstants() {
-	}
 }
