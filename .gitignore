@@ -1,5 +1,6 @@
 .idea/
 *.iml
-.env
+.envio
 .env.*
 !.env.example
+.env
