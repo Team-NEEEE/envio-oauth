@@ -9,7 +9,10 @@ public record CliLoginStatusResDto(
 	@Schema(description = "로그인 세션 상태 (PENDING, SUCCESS, EXPIRED)", example = "SUCCESS")
 	String status,
 
-	@Schema(description = "공개키 등록을 위한 1회용 임시 티켓 (SUCCESS 상태일 때만 발급)", example = "temp_1234567890abcdef...")
-	String registrationToken
+	@Schema(description = "GitHub 사용자 아이디", example = "mingi-lee")
+	String githubId,
+
+	@Schema(description = "GitHub 사용자 이메일", example = "mingi.lee@example.com")
+	String email
 ) {
 }
