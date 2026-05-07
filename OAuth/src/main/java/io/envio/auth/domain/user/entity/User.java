@@ -33,7 +33,7 @@ public class User extends BaseEntity {
 	@Column(name = "user_id")
 	private Long id;
 
-	@Column(name = "user_github_id", unique = true, nullable = false)
+	@Column(name = "user_github_id", unique = true, nullable = false, length = 255)
 	private String githubId;
 
 	@Column(name = "email", nullable = false)
@@ -47,7 +47,7 @@ public class User extends BaseEntity {
 		return User.builder()
 			.githubId(githubId)
 			.email(email)
-			.role(UserRole.OWNER)
+			.role(UserRole.VIEWER)
 			.build();
 	}
 }

@@ -31,7 +31,7 @@ public class UserCommandServiceImpl implements UserCommandService {
 	}
 
 	private void validateGithubId(final String githubId) {
-		if (userRepository.findByGithubId(githubId).isPresent()) {
+		if (userRepository.existsByGithubId(githubId)) {
 			throw new UserException(ErrorCode.USER_ALREADY_EXISTS);
 		}
 	}

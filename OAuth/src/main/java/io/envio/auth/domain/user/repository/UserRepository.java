@@ -9,4 +9,6 @@ import io.envio.auth.domain.user.entity.User;
 public interface UserRepository extends JpaRepository<User, Long> {
 
 	Optional<User> findByGithubId(final String githubId);
+
+	boolean existsByGithubId(final String githubId);
 }
