@@ -6,5 +6,5 @@ public interface UserQueryService {
 
 	User findById(final Long userId);
 
-	User findByEmployeeNumber(final String employeeNumber);
+	User findByGithubId(final String githubId);
 }

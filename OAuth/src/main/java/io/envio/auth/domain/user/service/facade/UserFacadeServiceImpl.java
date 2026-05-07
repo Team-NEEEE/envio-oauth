@@ -32,8 +32,8 @@ public class UserFacadeServiceImpl implements UserFacadeService {
 	}
 
 	@Override
-	public UserResDto getUserByEmployeeNumber(final String employeeNumber) {
-		User user = queryService.findByEmployeeNumber(employeeNumber);
+	public UserResDto getUserByGithubId(final String githubId) {
+		User user = queryService.findByGithubId(githubId);
 		return UserConverter.toUserResDto(user);
 	}
 }

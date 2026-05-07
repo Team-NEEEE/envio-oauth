@@ -9,5 +9,5 @@ public interface UserFacadeService {
 
 	UserResDto getUser(final Long userId);
 
-	UserResDto getUserByEmployeeNumber(final String employeeNumber);
+	UserResDto getUserByGithubId(final String githubId);
 }

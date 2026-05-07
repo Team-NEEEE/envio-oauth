@@ -24,14 +24,14 @@ public class UserCommandServiceImpl implements UserCommandService {
 
 	@Override
 	public User create(final UserCreateReqDto reqDto) {
-		validateEmployeeNumber(reqDto.employeeNumber());
+		validateGithubId(reqDto.githubId());
 		User user = userRepository.save(UserConverter.toEntity(reqDto));
-		log.info("[User] 사용자 생성 성공 - userId: {}, employeeNumber: {}", user.getId(), user.getEmployeeNumber());
+		log.info("[User] 사용자 생성 성공 - userId: {}, githubId: {}", user.getId(), user.getGithubId());
 		return user;
 	}
 
-	private void validateEmployeeNumber(final String employeeNumber) {
-		if (userRepository.existsByEmployeeNumber(employeeNumber)) {
+	private void validateGithubId(final String githubId) {
+		if (userRepository.findByGithubId(githubId).isPresent()) {
 			throw new UserException(ErrorCode.USER_ALREADY_EXISTS);
 		}
 	}

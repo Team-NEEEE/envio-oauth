@@ -18,10 +18,14 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import io.envio.auth.common.security.SecurityConstants;
 import io.envio.auth.common.security.jwt.JwtAuthenticationFilter;
 import io.envio.auth.common.security.oauth.CookieOAuth2AuthorizationRequestRepository;
+import io.envio.auth.common.security.oauth.GitHubOAuth2UserService;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+	private static final String OAUTH2_AUTHORIZATION_BASE_URI = "/api/auth/oauth";
+	private static final String OAUTH2_REDIRECTION_BASE_URI = "/api/auth/oauth/*/callback";
 
 	private static final String[] AUTHENTICATED_URLS = {
 		"/api/auth/me",
@@ -31,15 +35,18 @@ public class SecurityConfig {
 
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 	private final CookieOAuth2AuthorizationRequestRepository cookieOAuth2AuthorizationRequestRepository;
+	private final GitHubOAuth2UserService gitHubOAuth2UserService;
 	private final List<String> allowedOrigins;
 
 	public SecurityConfig(
 		final JwtAuthenticationFilter jwtAuthenticationFilter,
 		final CookieOAuth2AuthorizationRequestRepository cookieOAuth2AuthorizationRequestRepository,
+		final GitHubOAuth2UserService gitHubOAuth2UserService,
 		@Value("${cors.allowed-origins}") final List<String> allowedOrigins
 	) {
 		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
 		this.cookieOAuth2AuthorizationRequestRepository = cookieOAuth2AuthorizationRequestRepository;
+		this.gitHubOAuth2UserService = gitHubOAuth2UserService;
 		this.allowedOrigins = allowedOrigins;
 	}
 
@@ -58,7 +65,14 @@ public class SecurityConfig {
 			)
 			.oauth2Login(oauth -> oauth
 				.authorizationEndpoint(endpoint -> endpoint
+					.baseUri(OAUTH2_AUTHORIZATION_BASE_URI)
 					.authorizationRequestRepository(cookieOAuth2AuthorizationRequestRepository)
+				)
+				.redirectionEndpoint(endpoint -> endpoint
+					.baseUri(OAUTH2_REDIRECTION_BASE_URI)
+				)
+				.userInfoEndpoint(userInfo -> userInfo
+					.userService(gitHubOAuth2UserService)
 				)
 			)
 			.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

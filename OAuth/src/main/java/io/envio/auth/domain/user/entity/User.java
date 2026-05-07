@@ -4,6 +4,8 @@ import io.envio.auth.common.entity.BaseEntity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -22,20 +24,30 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
 	name = "users",
-	uniqueConstraints = @UniqueConstraint(name = "uk_users_employee_number", columnNames = "employee_number")
+	uniqueConstraints = @UniqueConstraint(name = "uk_users_github_id", columnNames = "user_github_id")
 )
 public class User extends BaseEntity {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	@Column(name = "user_id")
 	private Long id;
 
-	@Column(name = "employee_number", unique = true, length = 100, nullable = false)
-	private String employeeNumber;
-
-	@Column(name = "name", length = 50, nullable = false)
-	private String name;
+	@Column(name = "user_github_id", unique = true, nullable = false)
+	private String githubId;
 
 	@Column(name = "email", nullable = false)
 	private String email;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "role", nullable = false)
+	private UserRole role;
+
+	public static User createGithubUser(final String githubId, final String email) {
+		return User.builder()
+			.githubId(githubId)
+			.email(email)
+			.role(UserRole.OWNER)
+			.build();
+	}
 }
