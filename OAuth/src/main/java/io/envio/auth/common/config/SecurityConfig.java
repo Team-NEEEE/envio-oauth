@@ -2,7 +2,6 @@ package io.envio.auth.common.config;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -15,17 +14,19 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import io.envio.auth.common.config.properties.CorsProperties;
+import io.envio.auth.common.config.properties.OAuth2UriProperties;
 import io.envio.auth.common.security.SecurityConstants;
 import io.envio.auth.common.security.jwt.JwtAuthenticationFilter;
 import io.envio.auth.common.security.oauth.CookieOAuth2AuthorizationRequestRepository;
 import io.envio.auth.common.security.oauth.GitHubOAuth2UserService;
 
+import lombok.RequiredArgsConstructor;
+
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
-
-	private static final String OAUTH2_AUTHORIZATION_BASE_URI = "/api/auth/oauth";
-	private static final String OAUTH2_REDIRECTION_BASE_URI = "/api/auth/oauth/*/callback";
 
 	private static final String[] AUTHENTICATED_URLS = {
 		"/api/auth/me",
@@ -36,19 +37,8 @@ public class SecurityConfig {
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 	private final CookieOAuth2AuthorizationRequestRepository cookieOAuth2AuthorizationRequestRepository;
 	private final GitHubOAuth2UserService gitHubOAuth2UserService;
-	private final List<String> allowedOrigins;
-
-	public SecurityConfig(
-		final JwtAuthenticationFilter jwtAuthenticationFilter,
-		final CookieOAuth2AuthorizationRequestRepository cookieOAuth2AuthorizationRequestRepository,
-		final GitHubOAuth2UserService gitHubOAuth2UserService,
-		@Value("${cors.allowed-origins}") final List<String> allowedOrigins
-	) {
-		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-		this.cookieOAuth2AuthorizationRequestRepository = cookieOAuth2AuthorizationRequestRepository;
-		this.gitHubOAuth2UserService = gitHubOAuth2UserService;
-		this.allowedOrigins = allowedOrigins;
-	}
+	private final OAuth2UriProperties oauth2UriProperties;
+	private final CorsProperties corsProperties;
 
 	@Bean
 	public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
@@ -65,11 +55,11 @@ public class SecurityConfig {
 			)
 			.oauth2Login(oauth -> oauth
 				.authorizationEndpoint(endpoint -> endpoint
-					.baseUri(OAUTH2_AUTHORIZATION_BASE_URI)
+					.baseUri(oauth2UriProperties.authorizationBaseUri())
 					.authorizationRequestRepository(cookieOAuth2AuthorizationRequestRepository)
 				)
 				.redirectionEndpoint(endpoint -> endpoint
-					.baseUri(OAUTH2_REDIRECTION_BASE_URI)
+					.baseUri(oauth2UriProperties.redirectionBaseUri())
 				)
 				.userInfoEndpoint(userInfo -> userInfo
 					.userService(gitHubOAuth2UserService)
@@ -82,7 +72,7 @@ public class SecurityConfig {
 	@Bean
 	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration configuration = new CorsConfiguration();
-		configuration.setAllowedOrigins(allowedOrigins);
+		configuration.setAllowedOrigins(corsProperties.allowedOrigins());
 		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 		configuration.setAllowedHeaders(List.of("*"));
 		configuration.setExposedHeaders(List.of("Authorization"));

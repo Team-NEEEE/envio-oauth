@@ -1,5 +1,7 @@
 package io.envio.auth.domain.user.service.query;
 
+import java.util.Optional;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,5 +36,15 @@ public class UserQueryServiceImpl implements UserQueryService {
 			.orElseThrow(() -> new UserException(ErrorCode.USER_NOT_FOUND));
 		log.info("[User] 사용자 조회 성공 - githubId: {}", githubId);
 		return user;
+	}
+
+	@Override
+	public Optional<User> findOptionalByGithubId(final String githubId) {
+		return userRepository.findByGithubId(githubId);
+	}
+
+	@Override
+	public boolean existsByGithubId(final String githubId) {
+		return userRepository.existsByGithubId(githubId);
 	}
 }

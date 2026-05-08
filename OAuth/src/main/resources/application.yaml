@@ -90,6 +90,11 @@ cors:
     - http://localhost:3000
     - http://localhost:5173
 
+auth:
+  oauth2:
+    authorization-base-uri: /api/auth/oauth
+    redirection-base-uri: /api/auth/oauth/*/callback
+
 springdoc:
   swagger-ui:
     display-request-duration: true

@@ -1,5 +1,6 @@
 package io.envio.auth.domain.user.controller;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
+@ConditionalOnProperty(prefix = "auth.user-api", name = "enabled", havingValue = "true")
 public class UserController {
 
 	private final UserFacadeService facadeService;
@@ -48,9 +50,9 @@ public class UserController {
 	}
 
 	@Operation(summary = "GitHub ID 기반 사용자 조회", description = "GitHub ID로 사용자를 조회합니다.")
-	@GetMapping(params = "githubId")
+	@GetMapping
 	public ResponseEntity<BaseResponse<UserResDto>> getUserByGithubId(
-		@RequestParam final String githubId
+		@RequestParam(required = true) final String githubId
 	) {
 		UserResDto response = facadeService.getUserByGithubId(githubId);
 		return ResponseUtils.ok(response);
