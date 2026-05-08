@@ -40,11 +40,15 @@ public class UserQueryServiceImpl implements UserQueryService {
 
 	@Override
 	public Optional<User> findOptionalByGithubId(final String githubId) {
-		return userRepository.findByGithubId(githubId);
+		Optional<User> user = userRepository.findByGithubId(githubId);
+		log.info("[User] 사용자 Optional 조회 - githubId: {}, exists: {}", githubId, user.isPresent());
+		return user;
 	}
 
 	@Override
 	public boolean existsByGithubId(final String githubId) {
-		return userRepository.existsByGithubId(githubId);
+		boolean exists = userRepository.existsByGithubId(githubId);
+		log.info("[User] 사용자 존재 여부 조회 - githubId: {}, exists: {}", githubId, exists);
+		return exists;
 	}
 }

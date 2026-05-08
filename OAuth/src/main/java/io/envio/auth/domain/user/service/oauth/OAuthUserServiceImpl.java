@@ -29,7 +29,7 @@ public class OAuthUserServiceImpl implements OAuthUserService {
 
 	private User saveOrFindGithubUser(final String githubId, final String email) {
 		try {
-			return commandService.createGithubUser(githubId, email);
+			return commandService.save(User.createGithubUser(githubId, email));
 		} catch (DataIntegrityViolationException exception) {
 			return queryService.findOptionalByGithubId(githubId)
 				.orElseThrow(() -> new UserException(ErrorCode.USER_ALREADY_EXISTS));

@@ -24,7 +24,7 @@ public class UserFacadeServiceImpl implements UserFacadeService {
 	@Override
 	public UserResDto createUser(final UserCreateReqDto reqDto) {
 		validateGithubId(reqDto.githubId());
-		User user = commandService.create(reqDto);
+		User user = commandService.save(UserConverter.toEntity(reqDto));
 		return UserConverter.toUserResDto(user);
 	}
 
