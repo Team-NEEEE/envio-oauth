@@ -9,6 +9,8 @@ import io.envio.auth.domain.cli.dto.response.CliLoginStatusResDto;
 public interface CliAuthFacadeService {
 	CliLoginStartResDto startLogin();
 
+	void processGithubCallback(final String code, final String loginSessionId);
+
 	CliLoginStatusResDto getLoginStatus(final CliLoginStatusReqDto reqDto);
 
 	CliLoginSaveResDto saveCliUser(final CliLoginSaveReqDto reqDto);
