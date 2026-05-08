@@ -2,10 +2,12 @@ package io.envio.auth.domain.user.service.facade;
 
 import org.springframework.stereotype.Service;
 
+import io.envio.auth.common.error.ErrorCode;
 import io.envio.auth.domain.user.converter.UserConverter;
 import io.envio.auth.domain.user.dto.request.UserCreateReqDto;
 import io.envio.auth.domain.user.dto.response.UserResDto;
 import io.envio.auth.domain.user.entity.User;
+import io.envio.auth.domain.user.exception.UserException;
 import io.envio.auth.domain.user.service.command.UserCommandService;
 import io.envio.auth.domain.user.service.query.UserQueryService;
 
@@ -21,7 +23,8 @@ public class UserFacadeServiceImpl implements UserFacadeService {
 
 	@Override
 	public UserResDto createUser(final UserCreateReqDto reqDto) {
-		User user = commandService.create(reqDto);
+		validateGithubId(reqDto.githubId());
+		User user = commandService.save(UserConverter.toEntity(reqDto));
 		return UserConverter.toUserResDto(user);
 	}
 
@@ -32,8 +35,14 @@ public class UserFacadeServiceImpl implements UserFacadeService {
 	}
 
 	@Override
-	public UserResDto getUserByEmployeeNumber(final String employeeNumber) {
-		User user = queryService.findByEmployeeNumber(employeeNumber);
+	public UserResDto getUserByGithubId(final String githubId) {
+		User user = queryService.findByGithubId(githubId);
 		return UserConverter.toUserResDto(user);
+	}
+
+	private void validateGithubId(final String githubId) {
+		if (queryService.existsByGithubId(githubId)) {
+			throw new UserException(ErrorCode.USER_ALREADY_EXISTS);
+		}
 	}
 }

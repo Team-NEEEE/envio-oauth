@@ -3,11 +3,7 @@ package io.envio.auth.domain.user.service.command;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import io.envio.auth.common.error.ErrorCode;
-import io.envio.auth.domain.user.converter.UserConverter;
-import io.envio.auth.domain.user.dto.request.UserCreateReqDto;
 import io.envio.auth.domain.user.entity.User;
-import io.envio.auth.domain.user.exception.UserException;
 import io.envio.auth.domain.user.repository.UserRepository;
 
 import lombok.AccessLevel;
@@ -23,16 +19,9 @@ public class UserCommandServiceImpl implements UserCommandService {
 	private final UserRepository userRepository;
 
 	@Override
-	public User create(final UserCreateReqDto reqDto) {
-		validateEmployeeNumber(reqDto.employeeNumber());
-		User user = userRepository.save(UserConverter.toEntity(reqDto));
-		log.info("[User] 사용자 생성 성공 - userId: {}, employeeNumber: {}", user.getId(), user.getEmployeeNumber());
-		return user;
-	}
-
-	private void validateEmployeeNumber(final String employeeNumber) {
-		if (userRepository.existsByEmployeeNumber(employeeNumber)) {
-			throw new UserException(ErrorCode.USER_ALREADY_EXISTS);
-		}
+	public User save(final User user) {
+		User savedUser = userRepository.save(user);
+		log.info("[User] 사용자 저장 성공 - userId: {}, githubId: {}", savedUser.getId(), savedUser.getGithubId());
+		return savedUser;
 	}
 }

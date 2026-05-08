@@ -10,19 +10,15 @@ import lombok.experimental.UtilityClass;
 public class UserConverter {
 
 	public User toEntity(final UserCreateReqDto reqDto) {
-		return User.builder()
-			.employeeNumber(reqDto.employeeNumber())
-			.name(reqDto.name())
-			.email(reqDto.email())
-			.build();
+		return User.createGithubUser(reqDto.githubId(), reqDto.email());
 	}
 
 	public UserResDto toUserResDto(final User user) {
 		return UserResDto.builder()
 			.userId(user.getId())
-			.employeeNumber(user.getEmployeeNumber())
-			.name(user.getName())
+			.githubId(user.getGithubId())
 			.email(user.getEmail())
+			.role(user.getRole().name())
 			.build();
 	}
 }

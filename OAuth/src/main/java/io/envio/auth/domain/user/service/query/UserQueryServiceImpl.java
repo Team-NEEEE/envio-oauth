@@ -1,5 +1,7 @@
 package io.envio.auth.domain.user.service.query;
 
+import java.util.Optional;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,10 +31,24 @@ public class UserQueryServiceImpl implements UserQueryService {
 	}
 
 	@Override
-	public User findByEmployeeNumber(final String employeeNumber) {
-		User user = userRepository.findByEmployeeNumber(employeeNumber)
+	public User findByGithubId(final String githubId) {
+		User user = userRepository.findByGithubId(githubId)
 			.orElseThrow(() -> new UserException(ErrorCode.USER_NOT_FOUND));
-		log.info("[User] 사용자 조회 성공 - employeeNumber: {}", employeeNumber);
+		log.info("[User] 사용자 조회 성공 - githubId: {}", githubId);
 		return user;
+	}
+
+	@Override
+	public Optional<User> findOptionalByGithubId(final String githubId) {
+		Optional<User> user = userRepository.findByGithubId(githubId);
+		log.info("[User] 사용자 Optional 조회 - githubId: {}, exists: {}", githubId, user.isPresent());
+		return user;
+	}
+
+	@Override
+	public boolean existsByGithubId(final String githubId) {
+		boolean exists = userRepository.existsByGithubId(githubId);
+		log.info("[User] 사용자 존재 여부 조회 - githubId: {}, exists: {}", githubId, exists);
+		return exists;
 	}
 }

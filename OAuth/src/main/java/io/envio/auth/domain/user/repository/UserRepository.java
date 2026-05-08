@@ -8,7 +8,7 @@ import io.envio.auth.domain.user.entity.User;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-	Optional<User> findByEmployeeNumber(String employeeNumber);
+	Optional<User> findByGithubId(final String githubId);
 
-	boolean existsByEmployeeNumber(String employeeNumber);
+	boolean existsByGithubId(final String githubId);
 }
