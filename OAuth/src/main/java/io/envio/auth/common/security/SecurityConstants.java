@@ -8,6 +8,7 @@ public final class SecurityConstants {
 
 	public static final String[] PUBLIC_URLS = {
 		"/api/auth/oauth/**",
+		"/api/auth/cli/login/**",
 		"/api/auth/refresh",
 		"/swagger-ui/**",
 		"/v3/api-docs/**",
@@ -16,6 +17,7 @@ public final class SecurityConstants {
 
 	public static final String[] JWT_EXCLUDE_URLS = {
 		"/api/auth/oauth/**",
+		"/api/auth/cli/login/**",
 		"/api/auth/refresh"
 	};
 }

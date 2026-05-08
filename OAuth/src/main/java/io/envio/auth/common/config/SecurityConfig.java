@@ -1,5 +1,6 @@
 package io.envio.auth.common.config;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -36,11 +37,14 @@ public class SecurityConfig {
 	public SecurityConfig(
 		final JwtAuthenticationFilter jwtAuthenticationFilter,
 		final CookieOAuth2AuthorizationRequestRepository cookieOAuth2AuthorizationRequestRepository,
-		@Value("${cors.allowed-origins}") final List<String> allowedOrigins
+		@Value("${cors.allowed-origins:http://localhost:3000,http://localhost:5173}") final String allowedOrigins
 	) {
 		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
 		this.cookieOAuth2AuthorizationRequestRepository = cookieOAuth2AuthorizationRequestRepository;
-		this.allowedOrigins = allowedOrigins;
+		this.allowedOrigins = Arrays.stream(allowedOrigins.split(","))
+			.map(String::trim)
+			.filter(origin -> !origin.isBlank())
+			.toList();
 	}
 
 	@Bean
