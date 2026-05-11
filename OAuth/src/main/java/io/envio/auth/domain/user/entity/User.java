@@ -50,4 +50,8 @@ public class User extends BaseEntity {
 			.role(UserRole.VIEWER)
 			.build();
 	}
+
+	public void updateEmail(final String email) {
+		this.email = email;
+	}
 }

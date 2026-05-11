@@ -94,6 +94,7 @@ auth:
   oauth2:
     authorization-base-uri: /api/auth/oauth
     redirection-base-uri: /api/auth/oauth/*/callback
+    cli-redirect-uri: ${GITHUB_CLI_REDIRECT_URI:http://localhost:8080/api/auth/cli/login/github/redirect}
   jwt:
     secret: ${JWT_SECRET}
     access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:30m}

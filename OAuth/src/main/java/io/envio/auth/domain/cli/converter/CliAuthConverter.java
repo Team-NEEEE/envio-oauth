@@ -1,0 +1,49 @@
+package io.envio.auth.domain.cli.converter;
+
+import io.envio.auth.domain.cli.dto.request.CliLoginSaveReqDto;
+import io.envio.auth.domain.cli.dto.response.CliLoginSaveResDto;
+import io.envio.auth.domain.cli.dto.response.CliLoginStartResDto;
+import io.envio.auth.domain.cli.dto.response.CliLoginStatusResDto;
+import io.envio.auth.domain.cli.entity.RedisCliSession;
+import io.envio.auth.domain.user.entity.User;
+import io.envio.auth.domain.user.entity.UserDevice;
+
+import lombok.experimental.UtilityClass;
+
+@UtilityClass
+public class CliAuthConverter {
+
+	public CliLoginStartResDto toLoginStartResDto(final String loginSessionId, final String loginUrl) {
+		return CliLoginStartResDto.builder()
+			.loginSessionId(loginSessionId)
+			.loginUrl(loginUrl)
+			.build();
+	}
+
+	public CliLoginStatusResDto toLoginStatusResDto(final RedisCliSession session) {
+		return CliLoginStatusResDto.builder()
+			.status(session.getStatus())
+			.githubId(session.getGithubId())
+			.email(session.getEmail())
+			.build();
+	}
+
+	public User toUser(final RedisCliSession session) {
+		return User.createGithubUser(session.getGithubId(), session.getEmail());
+	}
+
+	public UserDevice toUserDevice(final CliLoginSaveReqDto reqDto, final User user) {
+		return UserDevice.builder()
+			.user(user)
+			.deviceName(reqDto.deviceName())
+			.publicKey(reqDto.publicKey())
+			.build();
+	}
+
+	public CliLoginSaveResDto toLoginSaveResDto(final User user) {
+		return CliLoginSaveResDto.builder()
+			.githubId(user.getGithubId())
+			.email(user.getEmail())
+			.build();
+	}
+}

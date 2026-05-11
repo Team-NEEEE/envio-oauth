@@ -12,9 +12,13 @@ import org.springframework.data.redis.repository.configuration.EnableRedisReposi
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import io.envio.auth.common.security.oauth.AuthorizationRequestRedisRepository;
+import io.envio.auth.domain.cli.repository.RedisCliSessionRepository;
 
 @Configuration
-@EnableRedisRepositories(basePackageClasses = AuthorizationRequestRedisRepository.class)
+@EnableRedisRepositories(basePackageClasses = {
+	AuthorizationRequestRedisRepository.class,
+	RedisCliSessionRepository.class
+})
 public class RedisConfig {
 
 	@Bean
