@@ -24,7 +24,6 @@ import io.envio.auth.domain.cli.view.CliAuthRedirectView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 
@@ -73,11 +72,11 @@ public class CliAuthController {
 		summary = "CLI login status",
 		description = "Return the current authentication status of a CLI login session."
 	)
-	@GetMapping("/github/callback")
+	@PostMapping("/github/callback")
 	public ResponseEntity<BaseResponse<CliLoginStatusResDto>> getLoginStatus(
-		@RequestParam @NotBlank(message = "Login session ID is required.") final String loginSessionId
+		@Valid @RequestBody final CliLoginStatusReqDto reqDto
 	) {
-		CliLoginStatusResDto response = facadeService.getLoginStatus(new CliLoginStatusReqDto(loginSessionId));
+		CliLoginStatusResDto response = facadeService.getLoginStatus(reqDto);
 		return ResponseUtils.ok(response);
 	}
 
