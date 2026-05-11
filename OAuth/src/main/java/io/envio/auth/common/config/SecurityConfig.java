@@ -20,6 +20,8 @@ import io.envio.auth.common.security.SecurityConstants;
 import io.envio.auth.common.security.jwt.JwtAuthenticationFilter;
 import io.envio.auth.common.security.oauth.CookieOAuth2AuthorizationRequestRepository;
 import io.envio.auth.common.security.oauth.GitHubOAuth2UserService;
+import io.envio.auth.common.security.oauth.OAuth2AuthenticationFailureHandler;
+import io.envio.auth.common.security.oauth.OAuth2AuthenticationSuccessHandler;
 
 import lombok.RequiredArgsConstructor;
 
@@ -28,15 +30,11 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-	private static final String[] AUTHENTICATED_URLS = {
-		"/api/auth/me",
-		"/api/auth/logout",
-		"/api/auth/projects/**"
-	};
-
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 	private final CookieOAuth2AuthorizationRequestRepository cookieOAuth2AuthorizationRequestRepository;
 	private final GitHubOAuth2UserService gitHubOAuth2UserService;
+	private final OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler;
+	private final OAuth2AuthenticationFailureHandler oauth2AuthenticationFailureHandler;
 	private final OAuth2UriProperties oauth2UriProperties;
 	private final CorsProperties corsProperties;
 
@@ -50,7 +48,7 @@ public class SecurityConfig {
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.authorizeHttpRequests(auth -> auth
 				.requestMatchers(SecurityConstants.PUBLIC_URLS).permitAll()
-				.requestMatchers(AUTHENTICATED_URLS).authenticated()
+				.requestMatchers(SecurityConstants.AUTHENTICATED_URLS).authenticated()
 				.anyRequest().authenticated()
 			)
 			.oauth2Login(oauth -> oauth
@@ -64,6 +62,8 @@ public class SecurityConfig {
 				.userInfoEndpoint(userInfo -> userInfo
 					.userService(gitHubOAuth2UserService)
 				)
+				.successHandler(oauth2AuthenticationSuccessHandler)
+				.failureHandler(oauth2AuthenticationFailureHandler)
 			)
 			.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 			.build();

@@ -14,6 +14,12 @@ public final class SecurityConstants {
 		"/actuator/health"
 	};
 
+	public static final String[] AUTHENTICATED_URLS = {
+		"/api/auth/me",
+		"/api/auth/logout",
+		"/api/auth/projects/**"
+	};
+
 	public static final String[] JWT_EXCLUDE_URLS = {
 		"/api/auth/oauth/**",
 		"/api/auth/refresh"

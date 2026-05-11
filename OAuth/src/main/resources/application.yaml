@@ -94,6 +94,10 @@ auth:
   oauth2:
     authorization-base-uri: /api/auth/oauth
     redirection-base-uri: /api/auth/oauth/*/callback
+  jwt:
+    secret: ${JWT_SECRET:envio-auth-local-development-secret-key}
+    access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:30m}
+    refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:14d}
 
 springdoc:
   swagger-ui:

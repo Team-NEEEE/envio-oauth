@@ -15,6 +15,7 @@ import lombok.NonNull;
 public record BaseResponse<T>(
 	@JsonIgnore
 	HttpStatus httpStatus,
+	String message,
 	boolean success,
 	T data,
 	ErrorResponse error,
@@ -30,8 +31,13 @@ public record BaseResponse<T>(
 	}
 
 	public static <T> BaseResponse<T> ok(final T data) {
+		return ok("요청이 성공했습니다.", data);
+	}
+
+	public static <T> BaseResponse<T> ok(final String message, final T data) {
 		return BaseResponse.<T>builder()
 			.httpStatus(HttpStatus.OK)
+			.message(message)
 			.success(true)
 			.data(data)
 			.error(null)
@@ -42,6 +48,7 @@ public record BaseResponse<T>(
 	public static <T> BaseResponse<T> created(final T data) {
 		return BaseResponse.<T>builder()
 			.httpStatus(HttpStatus.CREATED)
+			.message("요청이 성공했습니다.")
 			.success(true)
 			.data(data)
 			.error(null)
@@ -52,6 +59,7 @@ public record BaseResponse<T>(
 	public static <T> BaseResponse<T> accepted() {
 		return BaseResponse.<T>builder()
 			.httpStatus(HttpStatus.ACCEPTED)
+			.message("요청이 접수되었습니다.")
 			.success(true)
 			.data(null)
 			.error(null)
@@ -59,9 +67,14 @@ public record BaseResponse<T>(
 			.build();
 	}
 
-	public static <T> BaseResponse<T> fail(@NonNull ErrorResponse error) {
+	public static <T> BaseResponse<T> fail(@NonNull final ErrorResponse error) {
+		return fail(error.message(), error);
+	}
+
+	public static <T> BaseResponse<T> fail(final String message, @NonNull final ErrorResponse error) {
 		return BaseResponse.<T>builder()
 			.httpStatus(error.status())
+			.message(message)
 			.success(false)
 			.data(null)
 			.error(error)

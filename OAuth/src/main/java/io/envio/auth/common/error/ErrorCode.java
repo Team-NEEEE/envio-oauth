@@ -21,7 +21,8 @@ public enum ErrorCode {
 	METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "C-006", "지원하지 않는 HTTP 메서드입니다."),
 	UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "C-007", "지원하지 않는 미디어 타입입니다."),
 	DATA_INTEGRITY_VIOLATION(HttpStatus.CONFLICT, "C-008", "데이터 무결성 위반입니다."),
-	OPTIMISTIC_LOCK_CONFLICT(HttpStatus.CONFLICT, "C-009", "동시 요청으로 인한 충돌이 발생했습니다. 다시 시도해 주세요."),
+	OPTIMISTIC_LOCK_CONFLICT(HttpStatus.CONFLICT, "C-009", "동시 요청으로 인한 충돌이 발생했습니다."),
+	UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "C-010", "유효한 인증 정보가 필요합니다."),
 
 	/**
 	 * User Error (US-xxx)
