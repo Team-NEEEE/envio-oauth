@@ -28,8 +28,8 @@ public class CliAuthConverter {
 			.build();
 	}
 
-	public User toUser(final CliLoginSaveReqDto reqDto) {
-		return User.createGithubUser(reqDto.githubId(), resolveEmail(reqDto));
+	public User toUser(final RedisCliSession session) {
+		return User.createGithubUser(session.getGithubId(), resolveEmail(session));
 	}
 
 	public UserDevice toUserDevice(final CliLoginSaveReqDto reqDto, final User user) {
@@ -49,11 +49,11 @@ public class CliAuthConverter {
 			.build();
 	}
 
-	private String resolveEmail(final CliLoginSaveReqDto reqDto) {
-		if (reqDto.email() != null && !reqDto.email().isBlank()) {
-			return reqDto.email();
+	private String resolveEmail(final RedisCliSession session) {
+		if (session.getEmail() != null && !session.getEmail().isBlank()) {
+			return session.getEmail();
 		}
 
-		return reqDto.githubId() + "@users.noreply.github.com";
+		return session.getGithubId() + "@users.noreply.github.com";
 	}
 }

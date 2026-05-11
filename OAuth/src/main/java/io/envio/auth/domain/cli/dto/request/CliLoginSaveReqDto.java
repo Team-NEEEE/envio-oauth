@@ -12,7 +12,7 @@ public record CliLoginSaveReqDto(
 	@NotBlank(message = "세션 ID는 필수입니다.")
 	String loginSessionId,
 
-	@Schema(description = "사용자의 GitHub ID", example = "mingi-lee")
+	@Schema(description = "사용자의 GitHub ID", example = "123456")
 	@NotBlank(message = "GitHub ID는 필수입니다.")
 	String githubId,
 

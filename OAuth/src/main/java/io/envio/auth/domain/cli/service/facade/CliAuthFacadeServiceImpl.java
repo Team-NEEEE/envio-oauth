@@ -41,8 +41,8 @@ public class CliAuthFacadeServiceImpl implements CliAuthFacadeService {
 
 	@Override
 	public CliLoginSaveResDto saveCliUser(final CliLoginSaveReqDto reqDto) {
-		queryService.validateSessionForSave(reqDto.loginSessionId(), reqDto.githubId());
-		CliLoginSaveResDto response = commandService.registerUserAndDevice(reqDto);
+		RedisCliSession session = queryService.validateSessionForSave(reqDto.loginSessionId(), reqDto.githubId());
+		CliLoginSaveResDto response = commandService.registerUserAndDevice(reqDto, session);
 		commandService.deleteSession(reqDto.loginSessionId());
 		return response;
 	}

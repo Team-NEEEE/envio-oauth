@@ -21,22 +21,23 @@ public class CliAuthQueryServiceImpl implements CliAuthQueryService {
 	@Override
 	public RedisCliSession getSession(final String loginSessionId) {
 		return redisCliSessionRepository.findById(loginSessionId)
-			// 커스텀 예외 클래스가 있다면 교체해 주세요 (예: new CliAuthException(ErrorCode.SESSION_NOT_FOUND))
-			.orElseThrow(() -> new IllegalArgumentException("유효하지 않거나 만료된 세션입니다."));
+			.orElseThrow(() -> new IllegalArgumentException("Invalid or expired login session."));
 	}
 
 	@Override
-	public void validateSessionForSave(final String loginSessionId, final String reqGithubId) {
+	public RedisCliSession validateSessionForSave(final String loginSessionId, final String reqGithubId) {
 		RedisCliSession session = getSession(loginSessionId);
 
 		if (!"SUCCESS".equals(session.getStatus())) {
-			throw new IllegalStateException("아직 GitHub 인증이 완료되지 않은 세션입니다.");
+			throw new IllegalStateException("GitHub authentication is not completed.");
 		}
 
-		if (!session.getGithubId().equals(reqGithubId)) {
-			log.error("[CliAuth] 소유자 불일치 - sessionId: {}, 요청 ID: {}, 실제 ID: {}",
+		if (reqGithubId == null || reqGithubId.isBlank() || !session.getGithubId().equals(reqGithubId)) {
+			log.error("[CliAuth] github id mismatch - sessionId: {}, requestId: {}, sessionIdValue: {}",
 				loginSessionId, reqGithubId, session.getGithubId());
-			throw new IllegalArgumentException("GitHub 인증 정보가 일치하지 않습니다.");
+			throw new IllegalArgumentException("GitHub authentication information does not match.");
 		}
+
+		return session;
 	}
 }
