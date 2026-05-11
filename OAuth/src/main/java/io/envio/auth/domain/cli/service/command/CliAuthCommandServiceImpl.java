@@ -19,12 +19,11 @@ import io.envio.auth.domain.cli.dto.request.CliLoginSaveReqDto;
 import io.envio.auth.domain.cli.dto.response.CliLoginSaveResDto;
 import io.envio.auth.domain.cli.dto.response.CliLoginStartResDto;
 import io.envio.auth.domain.cli.entity.RedisCliSession;
-import io.envio.auth.domain.cli.entity.Role;
-import io.envio.auth.domain.cli.entity.User;
-import io.envio.auth.domain.cli.entity.UserDevice;
 import io.envio.auth.domain.cli.repository.RedisCliSessionRepository;
-import io.envio.auth.domain.cli.repository.UserDeviceRepository;
-import io.envio.auth.domain.cli.repository.UserRepository;
+import io.envio.auth.domain.user.entity.User;
+import io.envio.auth.domain.user.entity.UserDevice;
+import io.envio.auth.domain.user.repository.UserDeviceRepository;
+import io.envio.auth.domain.user.repository.UserRepository;
 
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -122,9 +121,9 @@ public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 	@Override
 	public CliLoginSaveResDto registerUserAndDevice(final CliLoginSaveReqDto reqDto) {
 		User user = userRepository.findByGithubId(reqDto.githubId())
-			.orElseGet(() -> userRepository.save(CliAuthConverter.toUser(reqDto, Role.MEMBER)));
+			.orElseGet(() -> userRepository.save(CliAuthConverter.toUser(reqDto)));
 
-		if (reqDto.email() != null && !reqDto.email().equals(user.getEmail())) {
+		if (reqDto.email() != null && !reqDto.email().isBlank() && !reqDto.email().equals(user.getEmail())) {
 			user.updateEmail(reqDto.email());
 		}
 

@@ -5,9 +5,8 @@ import io.envio.auth.domain.cli.dto.response.CliLoginSaveResDto;
 import io.envio.auth.domain.cli.dto.response.CliLoginStartResDto;
 import io.envio.auth.domain.cli.dto.response.CliLoginStatusResDto;
 import io.envio.auth.domain.cli.entity.RedisCliSession;
-import io.envio.auth.domain.cli.entity.Role;
-import io.envio.auth.domain.cli.entity.User;
-import io.envio.auth.domain.cli.entity.UserDevice;
+import io.envio.auth.domain.user.entity.User;
+import io.envio.auth.domain.user.entity.UserDevice;
 
 import lombok.experimental.UtilityClass;
 
@@ -29,12 +28,8 @@ public class CliAuthConverter {
 			.build();
 	}
 
-	public User toUser(final CliLoginSaveReqDto reqDto, final Role role) {
-		return User.builder()
-			.githubId(reqDto.githubId())
-			.email(reqDto.email())
-			.role(role)
-			.build();
+	public User toUser(final CliLoginSaveReqDto reqDto) {
+		return User.createGithubUser(reqDto.githubId(), resolveEmail(reqDto));
 	}
 
 	public UserDevice toUserDevice(final CliLoginSaveReqDto reqDto, final User user) {
@@ -52,5 +47,13 @@ public class CliAuthConverter {
 			.githubId(user.getGithubId())
 			.email(user.getEmail())
 			.build();
+	}
+
+	private String resolveEmail(final CliLoginSaveReqDto reqDto) {
+		if (reqDto.email() != null && !reqDto.email().isBlank()) {
+			return reqDto.email();
+		}
+
+		return reqDto.githubId() + "@users.noreply.github.com";
 	}
 }

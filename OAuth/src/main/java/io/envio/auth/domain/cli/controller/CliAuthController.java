@@ -34,14 +34,20 @@ public class CliAuthController {
 	private final CliAuthFacadeService facadeService;
 	private final CliAuthRedirectView redirectView;
 
-	@Operation(summary = "CLI login start", description = "Create a temporary CLI login session and return a GitHub OAuth URL.")
+	@Operation(
+		summary = "CLI login start",
+		description = "Create a temporary CLI login session and return a GitHub OAuth URL."
+	)
 	@PostMapping("/start")
 	public ResponseEntity<BaseResponse<CliLoginStartResDto>> startLogin() {
 		CliLoginStartResDto response = facadeService.startLogin();
 		return ResponseUtils.ok(response);
 	}
 
-	@Operation(summary = "GitHub OAuth redirect", description = "Handle the browser OAuth callback and mark the CLI login session as authenticated.")
+	@Operation(
+		summary = "GitHub OAuth redirect",
+		description = "Handle the browser OAuth callback and mark the CLI login session as authenticated."
+	)
 	@GetMapping(value = "/github/redirect", produces = MediaType.TEXT_HTML_VALUE)
 	public ResponseEntity<String> handleGithubRedirect(
 		@RequestParam("code") final String code,
@@ -53,7 +59,10 @@ public class CliAuthController {
 			.body(redirectView.success());
 	}
 
-	@Operation(summary = "CLI login status", description = "Return the current authentication status of a CLI login session.")
+	@Operation(
+		summary = "CLI login status",
+		description = "Return the current authentication status of a CLI login session."
+	)
 	@GetMapping("/github/callback")
 	public ResponseEntity<BaseResponse<CliLoginStatusResDto>> getLoginStatus(
 		@RequestParam final String loginSessionId
@@ -62,7 +71,10 @@ public class CliAuthController {
 		return ResponseUtils.ok(response);
 	}
 
-	@Operation(summary = "CLI login save", description = "Register CLI device public key after OAuth login succeeds, then remove the temporary session.")
+	@Operation(
+		summary = "CLI login save",
+		description = "Register CLI device public key after OAuth login succeeds, then remove the temporary session."
+	)
 	@PostMapping("/save")
 	public ResponseEntity<BaseResponse<CliLoginSaveResDto>> saveCliUser(
 		@Valid @RequestBody final CliLoginSaveReqDto reqDto

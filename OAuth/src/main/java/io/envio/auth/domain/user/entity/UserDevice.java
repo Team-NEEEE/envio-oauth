@@ -1,7 +1,6 @@
-package io.envio.auth.domain.cli.entity;
+package io.envio.auth.domain.user.entity;
 
 import io.envio.auth.common.entity.BaseEntity;
-import io.envio.auth.domain.cli.entity.User; // User 엔티티 경로에 맞게 수정 필요
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -28,10 +27,9 @@ public class UserDevice extends BaseEntity {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	@Column(name = "user_device_id")
 	private Long id;
 
-	// 지연 로딩(LAZY)을 사용하여 불필요한 User 조회를 방지
-	// ManyToOne 기본 값 EAGER
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_id", nullable = false, updatable = false)
 	private User user;
@@ -42,8 +40,7 @@ public class UserDevice extends BaseEntity {
 	@Column(name = "public_key", columnDefinition = "TEXT", nullable = false)
 	private String publicKey;
 
-	// 비즈니스 로직 (Setter 대신 상태 변경용)
-	public void updateDeviceName(String newDeviceName) {
-		this.deviceName = newDeviceName;
+	public void updateDeviceName(final String deviceName) {
+		this.deviceName = deviceName;
 	}
 }
