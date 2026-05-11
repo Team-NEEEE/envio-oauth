@@ -1,6 +1,7 @@
 package io.envio.auth.domain.view.service;
 
 import java.time.Duration;
+import java.util.Optional;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -24,10 +25,10 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 	@Override
 	public OAuthLoginResDto issueOAuthLoginTokens(final Authentication authentication) {
 		OAuth2User oauth2User = (OAuth2User)authentication.getPrincipal();
-		Long userId = ((Number)oauth2User.getAttribute("userId")).longValue();
-		String githubId = oauth2User.getAttribute("githubId");
-		String email = oauth2User.getAttribute("email");
-		String role = oauth2User.getAttribute("role");
+		Long userId = getRequiredLongAttribute(oauth2User, "userId");
+		String githubId = getRequiredStringAttribute(oauth2User, "githubId");
+		String email = getRequiredStringAttribute(oauth2User, "email");
+		String role = getRequiredStringAttribute(oauth2User, "role");
 
 		String accessToken = jwtTokenProvider.createAccessToken(userId, githubId, email, role);
 		String refreshToken = jwtTokenProvider.createRefreshToken(userId, githubId, email, role);
@@ -41,5 +42,16 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 			.email(email)
 			.role(role)
 			.build();
+	}
+
+	private Long getRequiredLongAttribute(final OAuth2User oauth2User, final String attributeName) {
+		return Optional.ofNullable((Number)oauth2User.getAttribute(attributeName))
+			.map(Number::longValue)
+			.orElseThrow(() -> new IllegalStateException(attributeName + " attribute is missing from OAuth2User"));
+	}
+
+	private String getRequiredStringAttribute(final OAuth2User oauth2User, final String attributeName) {
+		return Optional.ofNullable((String)oauth2User.getAttribute(attributeName))
+			.orElseThrow(() -> new IllegalStateException(attributeName + " attribute is missing from OAuth2User"));
 	}
 }

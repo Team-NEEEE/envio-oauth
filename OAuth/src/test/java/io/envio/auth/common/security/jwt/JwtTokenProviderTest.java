@@ -1,6 +1,8 @@
 package io.envio.auth.common.security.jwt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.IOException;
@@ -79,6 +81,30 @@ class JwtTokenProviderTest {
 		assertEquals(3, tokenParts.length);
 		assertEquals("refresh", payload.get("tokenType").asText());
 		assertEquals(REFRESH_TOKEN_EXPIRATION.toSeconds(), payload.get("exp").asLong() - payload.get("iat").asLong());
+	}
+
+	@Test
+	@DisplayName("동일한 payload라도 secret이 다르면 JWT signature가 달라진다")
+	void createTokenUsesSecretForSignature() {
+		// given
+		final JwtTokenProvider otherSecretTokenProvider = new JwtTokenProvider(
+			new JwtProperties("other-secret-key-for-jwt-token-provider", ACCESS_TOKEN_EXPIRATION,
+				REFRESH_TOKEN_EXPIRATION),
+			objectMapper
+		);
+
+		// when
+		final String token = jwtTokenProvider.createAccessToken(1L, "123456", "user@example.com", "VIEWER");
+		final String otherSecretToken = otherSecretTokenProvider.createAccessToken(1L, "123456", "user@example.com",
+			"VIEWER");
+
+		// then
+		final String signature = token.split("\\.")[2];
+		final String otherSecretSignature = otherSecretToken.split("\\.")[2];
+
+		assertFalse(signature.isBlank());
+		assertFalse(otherSecretSignature.isBlank());
+		assertNotEquals(signature, otherSecretSignature);
 	}
 
 	private JsonNode decodeTokenPart(final String tokenPart) throws IOException {

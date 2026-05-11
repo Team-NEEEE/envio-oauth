@@ -1,6 +1,7 @@
 package io.envio.auth.common.security.jwt;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
@@ -52,7 +53,7 @@ public class JwtTokenProvider {
 		final String email,
 		final String role,
 		final String tokenType,
-		final java.time.Duration expiration
+		final Duration expiration
 	) {
 		Instant now = Instant.now();
 		Map<String, Object> header = Map.of(

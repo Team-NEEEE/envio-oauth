@@ -1,6 +1,7 @@
 package io.envio.auth.domain.view.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -69,5 +70,22 @@ class ViewAuthServiceImplTest {
 		assertEquals("user@example.com", result.email());
 		assertEquals("VIEWER", result.role());
 		verify(tokenRepository).save("1", "refresh-token", REFRESH_TOKEN_EXPIRATION);
+	}
+
+	@Test
+	@DisplayName("OAuth 인증 정보에 필수 attribute가 없으면 명확한 예외를 던진다")
+	void issueOAuthLoginTokensThrowsExceptionWhenRequiredAttributeIsMissing() {
+		// given
+		when(authentication.getPrincipal()).thenReturn(oauth2User);
+		when(oauth2User.getAttribute("userId")).thenReturn(null);
+
+		// when
+		final IllegalStateException exception = assertThrows(
+			IllegalStateException.class,
+			() -> viewAuthService.issueOAuthLoginTokens(authentication)
+		);
+
+		// then
+		assertEquals("userId attribute is missing from OAuth2User", exception.getMessage());
 	}
 }
