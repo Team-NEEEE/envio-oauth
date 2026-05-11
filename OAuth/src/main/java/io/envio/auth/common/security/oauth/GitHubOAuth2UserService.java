@@ -40,6 +40,7 @@ public class GitHubOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 		User user = oauthUserService.findOrCreateGithubUser(githubId, email);
 
 		attributes.put("userId", user.getId());
+		attributes.put("githubId", user.getGithubId());
 		attributes.put(GITHUB_EMAIL_ATTRIBUTE, user.getEmail());
 		attributes.put("role", user.getRole().name());
 
