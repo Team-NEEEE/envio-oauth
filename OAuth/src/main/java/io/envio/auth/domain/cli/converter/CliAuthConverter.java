@@ -29,7 +29,7 @@ public class CliAuthConverter {
 	}
 
 	public User toUser(final RedisCliSession session) {
-		return User.createGithubUser(session.getGithubId(), resolveEmail(session));
+		return User.createGithubUser(session.getGithubId(), session.getEmail());
 	}
 
 	public UserDevice toUserDevice(final CliLoginSaveReqDto reqDto, final User user) {
@@ -40,20 +40,10 @@ public class CliAuthConverter {
 			.build();
 	}
 
-	public CliLoginSaveResDto toLoginSaveResDto(final User user, final UserDevice userDevice) {
+	public CliLoginSaveResDto toLoginSaveResDto(final User user) {
 		return CliLoginSaveResDto.builder()
-			.userId(user.getId())
-			.deviceId(userDevice.getId())
 			.githubId(user.getGithubId())
 			.email(user.getEmail())
 			.build();
-	}
-
-	private String resolveEmail(final RedisCliSession session) {
-		if (session.getEmail() != null && !session.getEmail().isBlank()) {
-			return session.getEmail();
-		}
-
-		return session.getGithubId() + "@users.noreply.github.com";
 	}
 }

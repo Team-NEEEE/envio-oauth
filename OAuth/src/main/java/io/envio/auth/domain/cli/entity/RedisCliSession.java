@@ -17,6 +17,9 @@ import lombok.NoArgsConstructor;
 @RedisHash("cli_session")
 public class RedisCliSession {
 
+	public static final String STATUS_PENDING = "PENDING";
+	public static final String STATUS_SUCCESS = "SUCCESS";
+
 	@Id
 	private String id;
 
@@ -30,7 +33,7 @@ public class RedisCliSession {
 	private Integer expiresIn;
 
 	public void completeAuth(final String githubId, final String email) {
-		this.status = "SUCCESS";
+		this.status = STATUS_SUCCESS;
 		this.githubId = githubId;
 		this.email = email;
 	}

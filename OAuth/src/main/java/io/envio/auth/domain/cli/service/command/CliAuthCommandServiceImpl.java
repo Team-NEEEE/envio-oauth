@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpEntity;
@@ -13,9 +14,12 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import io.envio.auth.common.error.ErrorCode;
+import io.envio.auth.common.error.exception.BusinessException;
 import io.envio.auth.domain.cli.converter.CliAuthConverter;
 import io.envio.auth.domain.cli.dto.request.CliLoginSaveReqDto;
 import io.envio.auth.domain.cli.dto.response.CliLoginSaveResDto;
@@ -33,12 +37,10 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
-@Transactional
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 
 	private static final int EXPIRES_IN = 300;
-	private static final String STATUS_PENDING = "PENDING";
 	private static final String GITHUB_ID_ATTRIBUTE = "id";
 	private static final String GITHUB_LOGIN_ATTRIBUTE = "login";
 	private static final String GITHUB_EMAIL_ATTRIBUTE = "email";
@@ -49,8 +51,8 @@ public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 	private final RedisCliSessionRepository redisCliSessionRepository;
 	private final UserRepository userRepository;
 	private final UserDeviceRepository userDeviceRepository;
-
-	private final RestTemplate restTemplate = new RestTemplate();
+	@Qualifier("cliRestTemplate")
+	private final RestTemplate restTemplate;
 
 	@Value("${spring.security.oauth2.client.registration.github.client-id}")
 	private String clientId;
@@ -58,7 +60,7 @@ public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 	@Value("${spring.security.oauth2.client.registration.github.client-secret}")
 	private String clientSecret;
 
-	@Value("${spring.security.oauth2.client.registration.github.redirect-uri}")
+	@Value("${auth.oauth2.cli-redirect-uri}")
 	private String redirectUri;
 
 	@Override
@@ -74,7 +76,7 @@ public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 
 		RedisCliSession session = RedisCliSession.builder()
 			.id(sessionId)
-			.status(STATUS_PENDING)
+			.status(RedisCliSession.STATUS_PENDING)
 			.expiresIn(EXPIRES_IN)
 			.build();
 
@@ -88,10 +90,10 @@ public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 	public void processGithubCallback(final String code, final String loginSessionId) {
 		log.info("[CliAuth] GitHub callback received - sessionId: {}", loginSessionId);
 		RedisCliSession session = redisCliSessionRepository.findById(loginSessionId)
-			.orElseThrow(() -> new IllegalArgumentException("Invalid or expired login session."));
+			.orElseThrow(() -> new BusinessException(ErrorCode.CLI_LOGIN_SESSION_INVALID));
 
-		if (!STATUS_PENDING.equals(session.getStatus())) {
-			throw new IllegalStateException("Login session is not pending.");
+		if (!RedisCliSession.STATUS_PENDING.equals(session.getStatus())) {
+			throw new BusinessException(ErrorCode.CLI_LOGIN_SESSION_NOT_READY);
 		}
 
 		Map<String, String> tokenParams = new HashMap<>();
@@ -104,14 +106,20 @@ public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 		tokenHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
 		HttpEntity<Map<String, String>> tokenRequest = new HttpEntity<>(tokenParams, tokenHeaders);
 
-		Map<String, Object> tokenResponse = restTemplate.postForObject(
-			GITHUB_ACCESS_TOKEN_URL,
-			tokenRequest,
-			Map.class
-		);
+		Map<String, Object> tokenResponse;
+		try {
+			tokenResponse = restTemplate.postForObject(
+				GITHUB_ACCESS_TOKEN_URL,
+				tokenRequest,
+				Map.class
+			);
+		} catch (RestClientException exception) {
+			log.warn("[CliAuth] GitHub access token request failed - sessionId: {}", loginSessionId, exception);
+			throw new BusinessException(ErrorCode.GITHUB_OAUTH_FAILED);
+		}
 
 		if (tokenResponse == null || tokenResponse.get("access_token") == null) {
-			throw new RuntimeException("GitHub access token issue failed.");
+			throw new BusinessException(ErrorCode.GITHUB_OAUTH_FAILED);
 		}
 		String accessToken = (String)tokenResponse.get("access_token");
 
@@ -119,15 +127,21 @@ public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 		userHeaders.setBearerAuth(accessToken);
 		HttpEntity<?> userRequest = new HttpEntity<>(userHeaders);
 
-		Map<String, Object> userInfo = restTemplate.exchange(
-			GITHUB_USER_URL,
-			HttpMethod.GET,
-			userRequest,
-			Map.class
-		).getBody();
+		Map<String, Object> userInfo;
+		try {
+			userInfo = restTemplate.exchange(
+				GITHUB_USER_URL,
+				HttpMethod.GET,
+				userRequest,
+				Map.class
+			).getBody();
+		} catch (RestClientException exception) {
+			log.warn("[CliAuth] GitHub user request failed - sessionId: {}", loginSessionId, exception);
+			throw new BusinessException(ErrorCode.GITHUB_OAUTH_FAILED);
+		}
 
 		if (userInfo == null || userInfo.get(GITHUB_ID_ATTRIBUTE) == null) {
-			throw new RuntimeException("GitHub user info request failed.");
+			throw new BusinessException(ErrorCode.GITHUB_OAUTH_FAILED);
 		}
 
 		String githubId = String.valueOf(userInfo.get(GITHUB_ID_ATTRIBUTE));
@@ -137,6 +151,7 @@ public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 	}
 
 	@Override
+	@Transactional
 	public CliLoginSaveResDto registerUserAndDevice(final CliLoginSaveReqDto reqDto, final RedisCliSession session) {
 		User user = findOrCreateUser(session);
 
@@ -147,15 +162,16 @@ public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 		}
 
 		if (userDeviceRepository.existsByUserAndDeviceName(user, reqDto.deviceName())) {
-			throw new IllegalArgumentException("Device name already exists for this user.");
+			throw new BusinessException(ErrorCode.CLI_DEVICE_ALREADY_EXISTS);
 		}
 
 		UserDevice userDevice = CliAuthConverter.toUserDevice(reqDto, user);
 		userDeviceRepository.save(userDevice);
 
-		log.info("[CliAuth] user device saved - githubId: {}, deviceName: {}", reqDto.githubId(), reqDto.deviceName());
+		log.info("[CliAuth] user device saved - githubId: {}, deviceName: {}",
+			session.getGithubId(), reqDto.deviceName());
 
-		return CliAuthConverter.toLoginSaveResDto(user, userDevice);
+		return CliAuthConverter.toLoginSaveResDto(user);
 	}
 
 	private User findOrCreateUser(final RedisCliSession session) {
@@ -170,12 +186,6 @@ public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 			return userRepository.findByGithubId(session.getGithubId())
 				.orElseThrow(() -> exception);
 		}
-	}
-
-	@Override
-	public void deleteSession(final String loginSessionId) {
-		redisCliSessionRepository.deleteById(loginSessionId);
-		log.info("[CliAuth] login session deleted - sessionId: {}", loginSessionId);
 	}
 
 	private String resolveEmail(final Map<String, Object> userInfo) {

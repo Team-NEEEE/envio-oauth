@@ -16,4 +16,16 @@ public class CliAuthRedirectView {
 			</html>
 			""";
 	}
+
+	public String failure() {
+		return """
+			<html>
+				<body style="text-align:center; padding-top:50px; font-family:sans-serif;">
+					<h1 style="color:#dc3545;">Authentication failed</h1>
+					<p>GitHub login could not be completed.</p>
+					<p><strong>Please return to the CLI and try again.</strong></p>
+				</body>
+			</html>
+			""";
+	}
 }

@@ -2,6 +2,7 @@ package io.envio.auth.domain.cli.controller;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.envio.auth.common.error.exception.BusinessException;
 import io.envio.auth.common.response.BaseResponse;
 import io.envio.auth.common.util.ResponseUtils;
 import io.envio.auth.domain.cli.dto.request.CliLoginSaveReqDto;
@@ -22,10 +24,12 @@ import io.envio.auth.domain.cli.view.CliAuthRedirectView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 
 @Tag(name = "CLI Auth", description = "CLI GitHub OAuth login API")
+@Validated
 @RestController
 @RequestMapping("/api/auth/cli/login")
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
@@ -53,10 +57,16 @@ public class CliAuthController {
 		@RequestParam("code") final String code,
 		@RequestParam("state") final String state
 	) {
-		facadeService.processGithubCallback(code, state);
-		return ResponseEntity.ok()
-			.contentType(MediaType.TEXT_HTML)
-			.body(redirectView.success());
+		try {
+			facadeService.processGithubCallback(code, state);
+			return ResponseEntity.ok()
+				.contentType(MediaType.TEXT_HTML)
+				.body(redirectView.success());
+		} catch (BusinessException exception) {
+			return ResponseEntity.badRequest()
+				.contentType(MediaType.TEXT_HTML)
+				.body(redirectView.failure());
+		}
 	}
 
 	@Operation(
@@ -65,7 +75,7 @@ public class CliAuthController {
 	)
 	@GetMapping("/github/callback")
 	public ResponseEntity<BaseResponse<CliLoginStatusResDto>> getLoginStatus(
-		@RequestParam final String loginSessionId
+		@RequestParam @NotBlank(message = "Login session ID is required.") final String loginSessionId
 	) {
 		CliLoginStatusResDto response = facadeService.getLoginStatus(new CliLoginStatusReqDto(loginSessionId));
 		return ResponseUtils.ok(response);

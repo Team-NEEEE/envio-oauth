@@ -12,6 +12,4 @@ public interface CliAuthCommandService {
 	void processGithubCallback(final String code, final String loginSessionId);
 
 	CliLoginSaveResDto registerUserAndDevice(final CliLoginSaveReqDto reqDto, final RedisCliSession session);
-
-	void deleteSession(final String loginSessionId);
 }
