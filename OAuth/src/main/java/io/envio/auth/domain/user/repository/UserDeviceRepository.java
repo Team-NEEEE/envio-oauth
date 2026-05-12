@@ -11,5 +11,5 @@ public interface UserDeviceRepository extends JpaRepository<UserDevice, Long> {
 
 	boolean existsByUserAndDeviceName(final User user, final String deviceName);
 
-	Optional<UserDevice> findFirstByUserOrderByCreatedAtDesc(final User user);
+	Optional<UserDevice> findFirstByUserIdOrderByCreatedAtDesc(final Long userId);
 }

@@ -1,6 +1,7 @@
 package io.envio.auth.common.security.jwt;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
@@ -63,10 +64,10 @@ public class JwtTokenProvider {
 		validateAccessTokenType(payload);
 
 		return new JwtClaims(
-			payload.get("userId").asLong(),
-			payload.get("githubId").asText(),
-			payload.get("email").asText(),
-			payload.get("role").asText()
+			getRequiredLongClaim(payload, "userId"),
+			getRequiredTextClaim(payload, "githubId"),
+			getRequiredTextClaim(payload, "email"),
+			getRequiredTextClaim(payload, "role")
 		);
 	}
 
@@ -127,7 +128,11 @@ public class JwtTokenProvider {
 
 	private void validateSignature(final String[] tokenParts) {
 		String expectedSignature = sign(tokenParts[0] + "." + tokenParts[1]);
-		if (!expectedSignature.equals(tokenParts[2])) {
+		boolean valid = MessageDigest.isEqual(
+			expectedSignature.getBytes(StandardCharsets.UTF_8),
+			tokenParts[2].getBytes(StandardCharsets.UTF_8)
+		);
+		if (!valid) {
 			throw new IllegalArgumentException("Invalid JWT signature.");
 		}
 	}
@@ -143,6 +148,22 @@ public class JwtTokenProvider {
 		if (!TOKEN_TYPE_ACCESS.equals(payload.path("tokenType").asText())) {
 			throw new IllegalArgumentException("Invalid JWT token type.");
 		}
+	}
+
+	private Long getRequiredLongClaim(final JsonNode payload, final String claimName) {
+		JsonNode claim = payload.path(claimName);
+		if (claim.isMissingNode() || !claim.canConvertToLong()) {
+			throw new IllegalArgumentException(claimName + " claim is missing from JWT.");
+		}
+		return claim.asLong();
+	}
+
+	private String getRequiredTextClaim(final JsonNode payload, final String claimName) {
+		JsonNode claim = payload.path(claimName);
+		if (claim.isMissingNode() || !claim.isTextual() || claim.asText().isBlank()) {
+			throw new IllegalArgumentException(claimName + " claim is missing from JWT.");
+		}
+		return claim.asText();
 	}
 
 	private String sign(final String value) {

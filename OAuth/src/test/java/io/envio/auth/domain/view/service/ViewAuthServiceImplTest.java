@@ -111,7 +111,7 @@ class ViewAuthServiceImplTest {
 		final User user = createUser();
 		final UserDevice userDevice = createUserDevice(user);
 		when(userQueryService.findById(1L)).thenReturn(user);
-		when(userDeviceQueryService.findLatestByUser(user)).thenReturn(Optional.of(userDevice));
+		when(userDeviceQueryService.findLatestByUserId(1L)).thenReturn(Optional.of(userDevice));
 
 		// when
 		final AuthMeResDto result = viewAuthService.getCurrentUser(claims);

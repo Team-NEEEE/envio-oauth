@@ -6,12 +6,14 @@ import java.util.Optional;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import io.envio.auth.common.config.properties.JwtProperties;
 import io.envio.auth.common.security.jwt.JwtClaims;
 import io.envio.auth.common.security.jwt.JwtTokenProvider;
 import io.envio.auth.common.security.token.TokenRepository;
 import io.envio.auth.domain.user.entity.User;
+import io.envio.auth.domain.user.entity.UserDevice;
 import io.envio.auth.domain.user.service.query.UserDeviceQueryService;
 import io.envio.auth.domain.user.service.query.UserQueryService;
 import io.envio.auth.domain.view.dto.response.AuthMeResDto;
@@ -52,10 +54,11 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 	}
 
 	@Override
+	@Transactional(readOnly = true)
 	public AuthMeResDto getCurrentUser(final JwtClaims claims) {
 		User user = userQueryService.findById(claims.userId());
-		String publicKey = userDeviceQueryService.findLatestByUser(user)
-			.map(userDevice -> userDevice.getPublicKey())
+		String publicKey = userDeviceQueryService.findLatestByUserId(user.getId())
+			.map(UserDevice::getPublicKey)
 			.orElse(null);
 
 		return AuthMeResDto.builder()

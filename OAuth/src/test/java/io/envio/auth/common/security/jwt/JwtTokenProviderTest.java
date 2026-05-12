@@ -9,7 +9,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Base64;
+import java.util.Map;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -146,8 +151,59 @@ class JwtTokenProviderTest {
 		assertThrows(IllegalArgumentException.class, () -> jwtTokenProvider.parseAccessToken(forgedToken));
 	}
 
+	@Test
+	@DisplayName("필수 클레임이 누락된 JWT를 파싱하면 IllegalArgumentException을 던진다")
+	void parseAccessTokenThrowsExceptionWhenRequiredClaimIsMissing() throws IOException {
+		// given
+		final String token = createTokenWithoutEmailClaim();
+
+		// when & then
+		assertThrows(IllegalArgumentException.class, () -> jwtTokenProvider.parseAccessToken(token));
+	}
+
 	private JsonNode decodeTokenPart(final String tokenPart) throws IOException {
 		final byte[] decoded = Base64.getUrlDecoder().decode(tokenPart);
 		return objectMapper.readTree(new String(decoded, StandardCharsets.UTF_8));
+	}
+
+	private String createTokenWithoutEmailClaim() throws IOException {
+		final Instant now = Instant.now();
+		final String encodedHeader = encodeJson(Map.of(
+			"alg", "HS256",
+			"typ", "JWT"
+		));
+		final String encodedPayload = encodeJson(Map.of(
+			"sub", "1",
+			"userId", 1L,
+			"githubId", "123456",
+			"role", "VIEWER",
+			"tokenType", "access",
+			"iat", now.getEpochSecond(),
+			"exp", now.plus(ACCESS_TOKEN_EXPIRATION).getEpochSecond()
+		));
+		final String signature = sign(encodedHeader + "." + encodedPayload);
+		return encodedHeader + "." + encodedPayload + "." + signature;
+	}
+
+	private String encodeJson(final Map<String, Object> value) throws IOException {
+		return Base64.getUrlEncoder()
+			.withoutPadding()
+			.encodeToString(objectMapper.writeValueAsBytes(value));
+	}
+
+	private String sign(final String value) {
+		try {
+			final Mac mac = Mac.getInstance("HmacSHA256");
+			final SecretKeySpec secretKeySpec = new SecretKeySpec(
+				SECRET.getBytes(StandardCharsets.UTF_8),
+				"HmacSHA256"
+			);
+			mac.init(secretKeySpec);
+			return Base64.getUrlEncoder()
+				.withoutPadding()
+				.encodeToString(mac.doFinal(value.getBytes(StandardCharsets.UTF_8)));
+		} catch (java.security.GeneralSecurityException exception) {
+			throw new IllegalStateException("Failed to sign JWT.", exception);
+		}
 	}
 }

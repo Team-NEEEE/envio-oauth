@@ -5,7 +5,6 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import io.envio.auth.domain.user.entity.User;
 import io.envio.auth.domain.user.entity.UserDevice;
 import io.envio.auth.domain.user.repository.UserDeviceRepository;
 
@@ -19,7 +18,7 @@ public class UserDeviceQueryServiceImpl implements UserDeviceQueryService {
 	private final UserDeviceRepository userDeviceRepository;
 
 	@Override
-	public Optional<UserDevice> findLatestByUser(final User user) {
-		return userDeviceRepository.findFirstByUserOrderByCreatedAtDesc(user);
+	public Optional<UserDevice> findLatestByUserId(final Long userId) {
+		return userDeviceRepository.findFirstByUserIdOrderByCreatedAtDesc(userId);
 	}
 }

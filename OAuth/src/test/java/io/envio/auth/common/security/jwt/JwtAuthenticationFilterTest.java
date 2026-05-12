@@ -34,6 +34,9 @@ class JwtAuthenticationFilterTest {
 	private JwtTokenProvider jwtTokenProvider;
 
 	private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+	private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint = new JwtAuthenticationEntryPoint(
+		objectMapper
+	);
 
 	@AfterEach
 	void tearDown() {
@@ -44,7 +47,10 @@ class JwtAuthenticationFilterTest {
 	@DisplayName("유효한 Bearer 토큰이면 SecurityContext에 인증 정보를 등록한다")
 	void doFilterInternalSetsAuthenticationWhenTokenIsValid() throws ServletException, IOException {
 		// given
-		final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtTokenProvider, objectMapper);
+		final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(
+			jwtTokenProvider,
+			jwtAuthenticationEntryPoint
+		);
 		final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/auth/me");
 		final MockHttpServletResponse response = new MockHttpServletResponse();
 		final MockFilterChain filterChain = new MockFilterChain();
@@ -67,7 +73,10 @@ class JwtAuthenticationFilterTest {
 	void doFilterInternalDoesNotSetAuthenticationWhenAuthorizationHeaderIsMissing()
 		throws ServletException, IOException {
 		// given
-		final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtTokenProvider, objectMapper);
+		final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(
+			jwtTokenProvider,
+			jwtAuthenticationEntryPoint
+		);
 		final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/auth/me");
 		final MockHttpServletResponse response = new MockHttpServletResponse();
 		final MockFilterChain filterChain = new MockFilterChain();
@@ -83,7 +92,10 @@ class JwtAuthenticationFilterTest {
 	@DisplayName("유효하지 않은 Bearer 토큰이면 401 응답을 반환한다")
 	void doFilterInternalWritesUnauthorizedResponseWhenTokenIsInvalid() throws ServletException, IOException {
 		// given
-		final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtTokenProvider, objectMapper);
+		final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(
+			jwtTokenProvider,
+			jwtAuthenticationEntryPoint
+		);
 		final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/auth/me");
 		final MockHttpServletResponse response = new MockHttpServletResponse();
 		final MockFilterChain filterChain = new MockFilterChain();
