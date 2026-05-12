@@ -68,34 +68,14 @@ WHERE user_id IS NULL
         WHERE users.user_id = user_devices.user_id
     );
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM pg_constraint
-        WHERE conrelid = 'user_devices'::regclass
-            AND contype = 'p'
-    ) THEN
-        ALTER TABLE user_devices
-            ADD CONSTRAINT pk_user_devices PRIMARY KEY (user_device_id);
-    END IF;
-END $$;
-
 ALTER TABLE user_devices ALTER COLUMN user_id SET NOT NULL;
 ALTER TABLE user_devices ALTER COLUMN device_name SET NOT NULL;
 ALTER TABLE user_devices ALTER COLUMN public_key SET NOT NULL;
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM pg_constraint
-        WHERE conname = 'fk_user_devices_user'
-    ) THEN
-        ALTER TABLE user_devices
-            ADD CONSTRAINT fk_user_devices_user
-            FOREIGN KEY (user_id)
-            REFERENCES users(user_id)
-            ON DELETE CASCADE;
-    END IF;
-END $$;
+ALTER TABLE user_devices DROP CONSTRAINT IF EXISTS fk_user_devices_user;
+
+ALTER TABLE user_devices
+    ADD CONSTRAINT fk_user_devices_user
+    FOREIGN KEY (user_id)
+    REFERENCES users(user_id)
+    ON DELETE CASCADE;
