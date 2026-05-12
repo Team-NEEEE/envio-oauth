@@ -75,6 +75,16 @@ class CliAuthFacadeServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("process github callback delegates to command service")
+	void processGithubCallbackDelegatesToCommandService() {
+		// when
+		facadeService.processGithubCallback("code", SESSION_ID);
+
+		// then
+		verify(commandService).processGithubCallback("code", SESSION_ID);
+	}
+
+	@Test
 	@DisplayName("successful save deletes login session")
 	void saveCliUserDeletesSessionWhenRegisterSucceeds() {
 		// given

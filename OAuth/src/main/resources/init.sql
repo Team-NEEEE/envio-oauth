@@ -60,6 +60,27 @@ UPDATE user_devices
 SET public_key = 'ssh-ed25519 legacy'
 WHERE public_key IS NULL;
 
+DELETE FROM user_devices
+WHERE user_id IS NULL
+    OR NOT EXISTS (
+        SELECT 1
+        FROM users
+        WHERE users.user_id = user_devices.user_id
+    );
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conrelid = 'user_devices'::regclass
+            AND contype = 'p'
+    ) THEN
+        ALTER TABLE user_devices
+            ADD CONSTRAINT pk_user_devices PRIMARY KEY (user_device_id);
+    END IF;
+END $$;
+
 ALTER TABLE user_devices ALTER COLUMN user_id SET NOT NULL;
 ALTER TABLE user_devices ALTER COLUMN device_name SET NOT NULL;
 ALTER TABLE user_devices ALTER COLUMN public_key SET NOT NULL;

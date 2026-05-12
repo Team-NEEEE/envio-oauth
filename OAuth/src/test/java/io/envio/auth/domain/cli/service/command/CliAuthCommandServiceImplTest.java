@@ -28,6 +28,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import io.envio.auth.common.error.ErrorCode;
@@ -233,6 +234,47 @@ class CliAuthCommandServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("GitHub access token request failure throws OAuth exception")
+	void processGithubCallbackThrowsExceptionWhenTokenRequestFails() {
+		// given
+		when(redisCliSessionRepository.findById("session-id")).thenReturn(Optional.of(pendingSession("session-id")));
+		when(restTemplate.postForObject(eq(GITHUB_ACCESS_TOKEN_URL), any(HttpEntity.class), eq(Map.class)))
+			.thenThrow(new RestClientException("network error"));
+
+		// when
+		BusinessException exception = assertThrows(
+			BusinessException.class,
+			() -> commandService.processGithubCallback("code", "session-id")
+		);
+
+		// then
+		assertEquals(ErrorCode.GITHUB_OAUTH_FAILED, exception.getErrorCode());
+	}
+
+	@Test
+	@DisplayName("GitHub user info request failure throws OAuth exception")
+	void processGithubCallbackThrowsExceptionWhenUserInfoRequestFails() {
+		// given
+		RedisCliSession session = pendingSession("session-id");
+		Map<String, Object> tokenResponse = Map.of("access_token", "access-token");
+
+		when(redisCliSessionRepository.findById("session-id")).thenReturn(Optional.of(session));
+		when(restTemplate.postForObject(eq(GITHUB_ACCESS_TOKEN_URL), any(HttpEntity.class), eq(Map.class)))
+			.thenReturn(tokenResponse);
+		when(restTemplate.exchange(eq(GITHUB_USER_URL), eq(HttpMethod.GET), any(HttpEntity.class), eq(Map.class)))
+			.thenThrow(new RestClientException("network error"));
+
+		// when
+		BusinessException exception = assertThrows(
+			BusinessException.class,
+			() -> commandService.processGithubCallback("code", "session-id")
+		);
+
+		// then
+		assertEquals(ErrorCode.GITHUB_OAUTH_FAILED, exception.getErrorCode());
+	}
+
+	@Test
 	@DisplayName("new user and CLI device are registered from authenticated session")
 	void registerUserAndDeviceCreatesUserAndDevice() {
 		// given
@@ -326,6 +368,7 @@ class CliAuthCommandServiceImplTest {
 
 		// then
 		assertEquals("123456", result.githubId());
+		assertEquals("user@example.com", existingUser.getEmail());
 		verify(userDeviceRepository).save(any(UserDevice.class));
 	}
 
