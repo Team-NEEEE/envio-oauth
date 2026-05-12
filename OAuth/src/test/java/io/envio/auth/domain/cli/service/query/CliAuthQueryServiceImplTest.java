@@ -158,6 +158,16 @@ class CliAuthQueryServiceImplTest {
 		verify(stringRedisTemplate).delete(LOCK_KEY);
 	}
 
+	@Test
+	@DisplayName("release save reservation removes save lock")
+	void releaseSessionSaveReservationDeletesSaveLock() {
+		// when
+		queryService.releaseSessionSaveReservation(SESSION_ID);
+
+		// then
+		verify(stringRedisTemplate).delete(LOCK_KEY);
+	}
+
 	private void mockSaveLock(final boolean acquired) {
 		when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
 		when(valueOperations.setIfAbsent(LOCK_KEY, "1", Duration.ofSeconds(300))).thenReturn(acquired);

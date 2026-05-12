@@ -166,7 +166,11 @@ public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 		}
 
 		UserDevice userDevice = CliAuthConverter.toUserDevice(reqDto, user);
-		userDeviceRepository.save(userDevice);
+		try {
+			userDeviceRepository.saveAndFlush(userDevice);
+		} catch (DataIntegrityViolationException exception) {
+			throw new BusinessException(ErrorCode.CLI_DEVICE_ALREADY_EXISTS);
+		}
 
 		log.info("[CliAuth] user device saved - githubId: {}, deviceName: {}",
 			session.getGithubId(), reqDto.deviceName());
@@ -194,6 +198,11 @@ public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 			return emailValue;
 		}
 
-		return userInfo.get(GITHUB_LOGIN_ATTRIBUTE) + "@users.noreply.github.com";
+		Object login = userInfo.get(GITHUB_LOGIN_ATTRIBUTE);
+		if (!(login instanceof String loginValue) || loginValue.isBlank()) {
+			throw new BusinessException(ErrorCode.GITHUB_OAUTH_FAILED);
+		}
+
+		return loginValue + "@users.noreply.github.com";
 	}
 }

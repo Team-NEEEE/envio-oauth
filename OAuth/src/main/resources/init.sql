@@ -72,6 +72,15 @@ ALTER TABLE user_devices ALTER COLUMN user_id SET NOT NULL;
 ALTER TABLE user_devices ALTER COLUMN device_name SET NOT NULL;
 ALTER TABLE user_devices ALTER COLUMN public_key SET NOT NULL;
 
+DELETE FROM user_devices base
+USING user_devices duplicated
+WHERE base.user_id = duplicated.user_id
+    AND base.device_name = duplicated.device_name
+    AND base.ctid < duplicated.ctid;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_user_devices_user_device_name
+    ON user_devices (user_id, device_name);
+
 ALTER TABLE user_devices DROP CONSTRAINT IF EXISTS fk_user_devices_user;
 
 ALTER TABLE user_devices
