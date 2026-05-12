@@ -155,6 +155,31 @@ class CliAuthCommandServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("null GitHub email is replaced with noreply email")
+	void processGithubCallbackUsesNoreplyEmailWhenGithubEmailIsNull() {
+		// given
+		RedisCliSession session = pendingSession("session-id");
+		Map<String, Object> tokenResponse = Map.of("access_token", "access-token");
+		Map<String, Object> userInfo = new HashMap<>();
+		userInfo.put("id", 123456);
+		userInfo.put("login", "octocat");
+		userInfo.put("email", null);
+
+		when(redisCliSessionRepository.findById("session-id")).thenReturn(Optional.of(session));
+		when(restTemplate.postForObject(eq(GITHUB_ACCESS_TOKEN_URL), any(HttpEntity.class), eq(Map.class)))
+			.thenReturn(tokenResponse);
+		when(restTemplate.exchange(eq(GITHUB_USER_URL), eq(HttpMethod.GET), any(HttpEntity.class), eq(Map.class)))
+			.thenReturn(ResponseEntity.ok(userInfo));
+
+		// when
+		commandService.processGithubCallback("code", "session-id");
+
+		// then
+		assertEquals("octocat@users.noreply.github.com", session.getEmail());
+		verify(redisCliSessionRepository).save(session);
+	}
+
+	@Test
 	@DisplayName("missing callback session throws invalid session exception")
 	void processGithubCallbackThrowsExceptionWhenSessionIsMissing() {
 		// given
