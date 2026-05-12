@@ -17,6 +17,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import io.envio.auth.common.config.properties.CorsProperties;
 import io.envio.auth.common.config.properties.OAuth2UriProperties;
 import io.envio.auth.common.security.SecurityConstants;
+import io.envio.auth.common.security.jwt.JwtAuthenticationEntryPoint;
 import io.envio.auth.common.security.jwt.JwtAuthenticationFilter;
 import io.envio.auth.common.security.oauth.CookieOAuth2AuthorizationRequestRepository;
 import io.envio.auth.common.security.oauth.GitHubOAuth2UserService;
@@ -31,6 +32,7 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
+	private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 	private final CookieOAuth2AuthorizationRequestRepository cookieOAuth2AuthorizationRequestRepository;
 	private final GitHubOAuth2UserService gitHubOAuth2UserService;
 	private final OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler;
@@ -45,6 +47,7 @@ public class SecurityConfig {
 			.csrf(AbstractHttpConfigurer::disable)
 			.formLogin(AbstractHttpConfigurer::disable)
 			.httpBasic(AbstractHttpConfigurer::disable)
+			.exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.authorizeHttpRequests(auth -> auth
 				.requestMatchers(SecurityConstants.PUBLIC_URLS).permitAll()

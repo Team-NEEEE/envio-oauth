@@ -6,10 +6,17 @@ import java.util.Optional;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import io.envio.auth.common.config.properties.JwtProperties;
+import io.envio.auth.common.security.jwt.JwtClaims;
 import io.envio.auth.common.security.jwt.JwtTokenProvider;
 import io.envio.auth.common.security.token.TokenRepository;
+import io.envio.auth.domain.user.entity.User;
+import io.envio.auth.domain.user.entity.UserDevice;
+import io.envio.auth.domain.user.service.query.UserDeviceQueryService;
+import io.envio.auth.domain.user.service.query.UserQueryService;
+import io.envio.auth.domain.view.dto.response.AuthMeResDto;
 import io.envio.auth.domain.view.dto.response.OAuthLoginResDto;
 
 import lombok.RequiredArgsConstructor;
@@ -21,6 +28,8 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 	private final JwtTokenProvider jwtTokenProvider;
 	private final JwtProperties jwtProperties;
 	private final TokenRepository tokenRepository;
+	private final UserQueryService userQueryService;
+	private final UserDeviceQueryService userDeviceQueryService;
 
 	@Override
 	public OAuthLoginResDto issueOAuthLoginTokens(final Authentication authentication) {
@@ -41,6 +50,23 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 			.userId(userId)
 			.email(email)
 			.role(role)
+			.build();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public AuthMeResDto getCurrentUser(final JwtClaims claims) {
+		User user = userQueryService.findById(claims.userId());
+		String publicKey = userDeviceQueryService.findLatestByUserId(user.getId())
+			.map(UserDevice::getPublicKey)
+			.orElse(null);
+
+		return AuthMeResDto.builder()
+			.userId(user.getId())
+			.githubId(user.getGithubId())
+			.email(user.getEmail())
+			.role(user.getRole().name())
+			.publicKey(publicKey)
 			.build();
 	}
 

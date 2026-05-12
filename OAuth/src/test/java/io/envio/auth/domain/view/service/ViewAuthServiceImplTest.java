@@ -1,11 +1,13 @@
 package io.envio.auth.domain.view.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Duration;
+import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,8 +19,15 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
 import io.envio.auth.common.config.properties.JwtProperties;
+import io.envio.auth.common.security.jwt.JwtClaims;
 import io.envio.auth.common.security.jwt.JwtTokenProvider;
 import io.envio.auth.common.security.token.TokenRepository;
+import io.envio.auth.domain.user.entity.User;
+import io.envio.auth.domain.user.entity.UserDevice;
+import io.envio.auth.domain.user.entity.UserRole;
+import io.envio.auth.domain.user.service.query.UserDeviceQueryService;
+import io.envio.auth.domain.user.service.query.UserQueryService;
+import io.envio.auth.domain.view.dto.response.AuthMeResDto;
 import io.envio.auth.domain.view.dto.response.OAuthLoginResDto;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,6 +44,12 @@ class ViewAuthServiceImplTest {
 
 	@Mock
 	private TokenRepository tokenRepository;
+
+	@Mock
+	private UserQueryService userQueryService;
+
+	@Mock
+	private UserDeviceQueryService userDeviceQueryService;
 
 	@Mock
 	private Authentication authentication;
@@ -87,5 +102,61 @@ class ViewAuthServiceImplTest {
 
 		// then
 		assertEquals("userId attribute is missing from OAuth2User", exception.getMessage());
+	}
+
+	@Test
+	@DisplayName("JWT claims의 사용자 ID로 현재 사용자 정보를 조회한다")
+	void getCurrentUserReturnsAuthenticatedUser() {
+		// given
+		final JwtClaims claims = new JwtClaims(1L, "123456", "user@example.com", "VIEWER");
+		final User user = createUser();
+		final UserDevice userDevice = createUserDevice(user);
+		when(userQueryService.findById(1L)).thenReturn(user);
+		when(userDeviceQueryService.findLatestByUserId(1L)).thenReturn(Optional.of(userDevice));
+
+		// when
+		final AuthMeResDto result = viewAuthService.getCurrentUser(claims);
+
+		// then
+		assertEquals(1L, result.userId());
+		assertEquals("123456", result.githubId());
+		assertEquals("user@example.com", result.email());
+		assertEquals("VIEWER", result.role());
+		assertEquals("ssh-rsa AAAAB3", result.publicKey());
+	}
+
+	@Test
+	@DisplayName("디바이스가 없는 사용자는 publicKey가 null인 응답을 반환한다")
+	void getCurrentUserReturnsNullPublicKeyWhenNoDeviceRegistered() {
+		// given
+		final JwtClaims claims = new JwtClaims(1L, "123456", "user@example.com", "VIEWER");
+		final User user = createUser();
+		when(userQueryService.findById(1L)).thenReturn(user);
+		when(userDeviceQueryService.findLatestByUserId(1L)).thenReturn(Optional.empty());
+
+		// when
+		final AuthMeResDto result = viewAuthService.getCurrentUser(claims);
+
+		// then
+		assertEquals(1L, result.userId());
+		assertNull(result.publicKey());
+	}
+
+	private User createUser() {
+		return User.builder()
+			.id(1L)
+			.githubId("123456")
+			.email("user@example.com")
+			.role(UserRole.VIEWER)
+			.build();
+	}
+
+	private UserDevice createUserDevice(final User user) {
+		return UserDevice.builder()
+			.id(1L)
+			.user(user)
+			.deviceName("Mingi-MacBook-Pro")
+			.publicKey("ssh-rsa AAAAB3")
+			.build();
 	}
 }
