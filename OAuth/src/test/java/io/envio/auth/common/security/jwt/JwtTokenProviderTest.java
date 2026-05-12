@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -105,6 +106,44 @@ class JwtTokenProviderTest {
 		assertFalse(signature.isBlank());
 		assertFalse(otherSecretSignature.isBlank());
 		assertNotEquals(signature, otherSecretSignature);
+	}
+
+	@Test
+	@DisplayName("유효한 accessToken을 파싱하면 JWT claims를 반환한다")
+	void parseAccessTokenReturnsClaims() {
+		// given
+		final String token = jwtTokenProvider.createAccessToken(1L, "123456", "user@example.com", "VIEWER");
+
+		// when
+		final JwtClaims claims = jwtTokenProvider.parseAccessToken(token);
+
+		// then
+		assertEquals(1L, claims.userId());
+		assertEquals("123456", claims.githubId());
+		assertEquals("user@example.com", claims.email());
+		assertEquals("VIEWER", claims.role());
+	}
+
+	@Test
+	@DisplayName("refreshToken을 accessToken으로 파싱하면 예외를 던진다")
+	void parseAccessTokenThrowsExceptionWhenTokenTypeIsRefresh() {
+		// given
+		final String refreshToken = jwtTokenProvider.createRefreshToken(1L, "123456", "user@example.com", "VIEWER");
+
+		// when & then
+		assertThrows(IllegalArgumentException.class, () -> jwtTokenProvider.parseAccessToken(refreshToken));
+	}
+
+	@Test
+	@DisplayName("signature가 변조된 JWT를 파싱하면 예외를 던진다")
+	void parseAccessTokenThrowsExceptionWhenSignatureIsInvalid() {
+		// given
+		final String token = jwtTokenProvider.createAccessToken(1L, "123456", "user@example.com", "VIEWER");
+		final String[] tokenParts = token.split("\\.");
+		final String forgedToken = tokenParts[0] + "." + tokenParts[1] + ".forged-signature";
+
+		// when & then
+		assertThrows(IllegalArgumentException.class, () -> jwtTokenProvider.parseAccessToken(forgedToken));
 	}
 
 	private JsonNode decodeTokenPart(final String tokenPart) throws IOException {

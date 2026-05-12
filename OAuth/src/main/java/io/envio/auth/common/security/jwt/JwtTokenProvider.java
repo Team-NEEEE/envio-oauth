@@ -12,6 +12,7 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.envio.auth.common.config.properties.JwtProperties;
@@ -45,6 +46,28 @@ public class JwtTokenProvider {
 		final String role
 	) {
 		return createToken(userId, githubId, email, role, TOKEN_TYPE_REFRESH, jwtProperties.refreshTokenExpiration());
+	}
+
+	public JwtClaims parseAccessToken(final String token) {
+		String[] tokenParts = token.split("\\.");
+		if (tokenParts.length != 3) {
+			throw new IllegalArgumentException("Invalid JWT format.");
+		}
+
+		JsonNode header = decodeJson(tokenParts[0]);
+		validateHeader(header);
+		validateSignature(tokenParts);
+
+		JsonNode payload = decodeJson(tokenParts[1]);
+		validateExpiration(payload);
+		validateAccessTokenType(payload);
+
+		return new JwtClaims(
+			payload.get("userId").asLong(),
+			payload.get("githubId").asText(),
+			payload.get("email").asText(),
+			payload.get("role").asText()
+		);
 	}
 
 	private String createToken(
@@ -84,6 +107,41 @@ public class JwtTokenProvider {
 				.encodeToString(objectMapper.writeValueAsBytes(value));
 		} catch (JsonProcessingException exception) {
 			throw new IllegalStateException("Failed to encode JWT.", exception);
+		}
+	}
+
+	private JsonNode decodeJson(final String value) {
+		try {
+			byte[] decoded = Base64.getUrlDecoder().decode(value);
+			return objectMapper.readTree(decoded);
+		} catch (IllegalArgumentException | java.io.IOException exception) {
+			throw new IllegalArgumentException("Failed to decode JWT.", exception);
+		}
+	}
+
+	private void validateHeader(final JsonNode header) {
+		if (!"HS256".equals(header.path("alg").asText()) || !"JWT".equals(header.path("typ").asText())) {
+			throw new IllegalArgumentException("Invalid JWT header.");
+		}
+	}
+
+	private void validateSignature(final String[] tokenParts) {
+		String expectedSignature = sign(tokenParts[0] + "." + tokenParts[1]);
+		if (!expectedSignature.equals(tokenParts[2])) {
+			throw new IllegalArgumentException("Invalid JWT signature.");
+		}
+	}
+
+	private void validateExpiration(final JsonNode payload) {
+		long expiration = payload.path("exp").asLong(0);
+		if (expiration <= Instant.now().getEpochSecond()) {
+			throw new IllegalArgumentException("Expired JWT.");
+		}
+	}
+
+	private void validateAccessTokenType(final JsonNode payload) {
+		if (!TOKEN_TYPE_ACCESS.equals(payload.path("tokenType").asText())) {
+			throw new IllegalArgumentException("Invalid JWT token type.");
 		}
 	}
 
