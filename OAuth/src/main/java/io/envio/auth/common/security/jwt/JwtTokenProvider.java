@@ -55,9 +55,9 @@ public class JwtTokenProvider {
 			throw new JwtParsingException("Invalid JWT format.");
 		}
 
+		validateSignature(tokenParts);
 		JsonNode header = decodeJson(tokenParts[0]);
 		validateHeader(header);
-		validateSignature(tokenParts);
 
 		JsonNode payload = decodeJson(tokenParts[1]);
 		validateExpiration(payload);
@@ -127,11 +127,9 @@ public class JwtTokenProvider {
 	}
 
 	private void validateSignature(final String[] tokenParts) {
-		String expectedSignature = sign(tokenParts[0] + "." + tokenParts[1]);
-		boolean valid = MessageDigest.isEqual(
-			expectedSignature.getBytes(StandardCharsets.UTF_8),
-			tokenParts[2].getBytes(StandardCharsets.UTF_8)
-		);
+		byte[] expectedBytes = signRaw(tokenParts[0] + "." + tokenParts[1]);
+		byte[] actualBytes = decodeSignature(tokenParts[2]);
+		boolean valid = MessageDigest.isEqual(expectedBytes, actualBytes);
 		if (!valid) {
 			throw new JwtParsingException("Invalid JWT signature.");
 		}
@@ -161,12 +159,16 @@ public class JwtTokenProvider {
 	private String getRequiredTextClaim(final JsonNode payload, final String claimName) {
 		JsonNode claim = payload.path(claimName);
 		if (claim.isMissingNode() || !claim.isTextual() || claim.asText().isBlank()) {
-			throw new JwtParsingException(claimName + " claim is missing from JWT.");
+			throw new JwtParsingException(claimName + " claim is missing or blank in JWT.");
 		}
 		return claim.asText();
 	}
 
 	private String sign(final String value) {
+		return Base64.getUrlEncoder().withoutPadding().encodeToString(signRaw(value));
+	}
+
+	private byte[] signRaw(final String value) {
 		try {
 			Mac mac = Mac.getInstance(HMAC_SHA256);
 			SecretKeySpec secretKeySpec = new SecretKeySpec(
@@ -174,10 +176,17 @@ public class JwtTokenProvider {
 				HMAC_SHA256
 			);
 			mac.init(secretKeySpec);
-			byte[] signature = mac.doFinal(value.getBytes(StandardCharsets.UTF_8));
-			return Base64.getUrlEncoder().withoutPadding().encodeToString(signature);
+			return mac.doFinal(value.getBytes(StandardCharsets.UTF_8));
 		} catch (java.security.GeneralSecurityException exception) {
 			throw new IllegalStateException("Failed to sign JWT.", exception);
+		}
+	}
+
+	private byte[] decodeSignature(final String signature) {
+		try {
+			return Base64.getUrlDecoder().decode(signature);
+		} catch (IllegalArgumentException exception) {
+			throw new JwtParsingException("Invalid JWT signature encoding.", exception);
 		}
 	}
 }

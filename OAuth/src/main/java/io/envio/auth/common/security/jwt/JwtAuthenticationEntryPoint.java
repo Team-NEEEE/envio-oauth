@@ -31,13 +31,6 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 		final HttpServletResponse response,
 		final AuthenticationException authException
 	) throws IOException {
-		writeUnauthorizedResponse(request, response);
-	}
-
-	public void writeUnauthorizedResponse(
-		final HttpServletRequest request,
-		final HttpServletResponse response
-	) throws IOException {
 		ErrorResponse errorResponse = ErrorResponse.of(ErrorCode.UNAUTHORIZED, request);
 
 		response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

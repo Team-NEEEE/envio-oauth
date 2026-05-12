@@ -152,7 +152,7 @@ class JwtTokenProviderTest {
 	}
 
 	@Test
-	@DisplayName("필수 클레임이 누락된 JWT를 파싱하면 IllegalArgumentException을 던진다")
+	@DisplayName("필수 클레임이 누락된 JWT를 파싱하면 JwtParsingException을 던진다")
 	void parseAccessTokenThrowsExceptionWhenRequiredClaimIsMissing() throws IOException {
 		// given
 		final String token = createTokenWithoutEmailClaim();

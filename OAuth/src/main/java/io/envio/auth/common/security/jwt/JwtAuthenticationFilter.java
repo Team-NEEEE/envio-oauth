@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.List;
 
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -74,8 +75,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			SecurityContextHolder.getContext().setAuthentication(authentication);
 		} catch (JwtParsingException exception) {
 			SecurityContextHolder.clearContext();
-			log.warn("Invalid JWT access token", exception);
-			jwtAuthenticationEntryPoint.writeUnauthorizedResponse(request, response);
+			log.warn("Invalid JWT access token: {}", exception.getMessage());
+			jwtAuthenticationEntryPoint.commence(
+				request,
+				response,
+				new InsufficientAuthenticationException(exception.getMessage(), exception)
+			);
 			return;
 		}
 
