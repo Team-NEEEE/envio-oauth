@@ -185,7 +185,7 @@ public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 
 	private User saveOrFindUser(final RedisCliSession session) {
 		try {
-			return userRepository.save(CliAuthConverter.toUser(session));
+			return userRepository.saveAndFlush(CliAuthConverter.toUser(session));
 		} catch (DataIntegrityViolationException exception) {
 			return userRepository.findByGithubId(session.getGithubId())
 				.orElseThrow(() -> exception);

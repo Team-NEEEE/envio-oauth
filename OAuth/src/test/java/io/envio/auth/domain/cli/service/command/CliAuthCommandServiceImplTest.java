@@ -313,7 +313,7 @@ class CliAuthCommandServiceImplTest {
 		User savedUser = createUser(1L, "123456", "user@example.com");
 
 		when(userRepository.findByGithubId("123456")).thenReturn(Optional.empty());
-		when(userRepository.save(any(User.class))).thenReturn(savedUser);
+		when(userRepository.saveAndFlush(any(User.class))).thenReturn(savedUser);
 		when(userDeviceRepository.existsByUserAndDeviceName(savedUser, "Laptop")).thenReturn(false);
 
 		// when
@@ -322,7 +322,7 @@ class CliAuthCommandServiceImplTest {
 		// then
 		ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
 		ArgumentCaptor<UserDevice> deviceCaptor = ArgumentCaptor.forClass(UserDevice.class);
-		verify(userRepository).save(userCaptor.capture());
+		verify(userRepository).saveAndFlush(userCaptor.capture());
 		verify(userDeviceRepository).saveAndFlush(deviceCaptor.capture());
 
 		assertEquals("123456", userCaptor.getValue().getGithubId());
@@ -352,7 +352,7 @@ class CliAuthCommandServiceImplTest {
 		// then
 		assertEquals("new@example.com", existingUser.getEmail());
 		assertEquals("new@example.com", result.email());
-		verify(userRepository, never()).save(any(User.class));
+		verify(userRepository, never()).saveAndFlush(any(User.class));
 		verify(userDeviceRepository).saveAndFlush(any(UserDevice.class));
 	}
 
@@ -412,7 +412,7 @@ class CliAuthCommandServiceImplTest {
 		when(userRepository.findByGithubId("123456"))
 			.thenReturn(Optional.empty())
 			.thenReturn(Optional.of(existingUser));
-		when(userRepository.save(any(User.class)))
+		when(userRepository.saveAndFlush(any(User.class)))
 			.thenThrow(new DataIntegrityViolationException("duplicate github id"));
 		when(userDeviceRepository.existsByUserAndDeviceName(existingUser, "Laptop")).thenReturn(false);
 
