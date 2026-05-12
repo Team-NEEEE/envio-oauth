@@ -52,7 +52,7 @@ public class JwtTokenProvider {
 	public JwtClaims parseAccessToken(final String token) {
 		String[] tokenParts = token.split("\\.");
 		if (tokenParts.length != 3) {
-			throw new IllegalArgumentException("Invalid JWT format.");
+			throw new JwtParsingException("Invalid JWT format.");
 		}
 
 		JsonNode header = decodeJson(tokenParts[0]);
@@ -116,13 +116,13 @@ public class JwtTokenProvider {
 			byte[] decoded = Base64.getUrlDecoder().decode(value);
 			return objectMapper.readTree(decoded);
 		} catch (IllegalArgumentException | java.io.IOException exception) {
-			throw new IllegalArgumentException("Failed to decode JWT.", exception);
+			throw new JwtParsingException("Failed to decode JWT.", exception);
 		}
 	}
 
 	private void validateHeader(final JsonNode header) {
 		if (!"HS256".equals(header.path("alg").asText()) || !"JWT".equals(header.path("typ").asText())) {
-			throw new IllegalArgumentException("Invalid JWT header.");
+			throw new JwtParsingException("Invalid JWT header.");
 		}
 	}
 
@@ -133,27 +133,27 @@ public class JwtTokenProvider {
 			tokenParts[2].getBytes(StandardCharsets.UTF_8)
 		);
 		if (!valid) {
-			throw new IllegalArgumentException("Invalid JWT signature.");
+			throw new JwtParsingException("Invalid JWT signature.");
 		}
 	}
 
 	private void validateExpiration(final JsonNode payload) {
 		long expiration = payload.path("exp").asLong(0);
 		if (expiration <= Instant.now().getEpochSecond()) {
-			throw new IllegalArgumentException("Expired JWT.");
+			throw new JwtParsingException("Expired JWT.");
 		}
 	}
 
 	private void validateAccessTokenType(final JsonNode payload) {
 		if (!TOKEN_TYPE_ACCESS.equals(payload.path("tokenType").asText())) {
-			throw new IllegalArgumentException("Invalid JWT token type.");
+			throw new JwtParsingException("Invalid JWT token type.");
 		}
 	}
 
 	private Long getRequiredLongClaim(final JsonNode payload, final String claimName) {
 		JsonNode claim = payload.path(claimName);
 		if (claim.isMissingNode() || !claim.canConvertToLong()) {
-			throw new IllegalArgumentException(claimName + " claim is missing from JWT.");
+			throw new JwtParsingException(claimName + " claim is missing from JWT.");
 		}
 		return claim.asLong();
 	}
@@ -161,7 +161,7 @@ public class JwtTokenProvider {
 	private String getRequiredTextClaim(final JsonNode payload, final String claimName) {
 		JsonNode claim = payload.path(claimName);
 		if (claim.isMissingNode() || !claim.isTextual() || claim.asText().isBlank()) {
-			throw new IllegalArgumentException(claimName + " claim is missing from JWT.");
+			throw new JwtParsingException(claimName + " claim is missing from JWT.");
 		}
 		return claim.asText();
 	}

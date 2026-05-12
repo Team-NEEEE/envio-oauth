@@ -136,7 +136,7 @@ class JwtTokenProviderTest {
 		final String refreshToken = jwtTokenProvider.createRefreshToken(1L, "123456", "user@example.com", "VIEWER");
 
 		// when & then
-		assertThrows(IllegalArgumentException.class, () -> jwtTokenProvider.parseAccessToken(refreshToken));
+		assertThrows(JwtParsingException.class, () -> jwtTokenProvider.parseAccessToken(refreshToken));
 	}
 
 	@Test
@@ -148,7 +148,7 @@ class JwtTokenProviderTest {
 		final String forgedToken = tokenParts[0] + "." + tokenParts[1] + ".forged-signature";
 
 		// when & then
-		assertThrows(IllegalArgumentException.class, () -> jwtTokenProvider.parseAccessToken(forgedToken));
+		assertThrows(JwtParsingException.class, () -> jwtTokenProvider.parseAccessToken(forgedToken));
 	}
 
 	@Test
@@ -158,7 +158,7 @@ class JwtTokenProviderTest {
 		final String token = createTokenWithoutEmailClaim();
 
 		// when & then
-		assertThrows(IllegalArgumentException.class, () -> jwtTokenProvider.parseAccessToken(token));
+		assertThrows(JwtParsingException.class, () -> jwtTokenProvider.parseAccessToken(token));
 	}
 
 	private JsonNode decodeTokenPart(final String tokenPart) throws IOException {

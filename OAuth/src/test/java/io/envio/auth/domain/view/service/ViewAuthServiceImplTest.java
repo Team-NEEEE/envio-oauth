@@ -1,6 +1,7 @@
 package io.envio.auth.domain.view.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -122,6 +123,23 @@ class ViewAuthServiceImplTest {
 		assertEquals("user@example.com", result.email());
 		assertEquals("VIEWER", result.role());
 		assertEquals("ssh-rsa AAAAB3", result.publicKey());
+	}
+
+	@Test
+	@DisplayName("디바이스가 없는 사용자는 publicKey가 null인 응답을 반환한다")
+	void getCurrentUserReturnsNullPublicKeyWhenNoDeviceRegistered() {
+		// given
+		final JwtClaims claims = new JwtClaims(1L, "123456", "user@example.com", "VIEWER");
+		final User user = createUser();
+		when(userQueryService.findById(1L)).thenReturn(user);
+		when(userDeviceQueryService.findLatestByUserId(1L)).thenReturn(Optional.empty());
+
+		// when
+		final AuthMeResDto result = viewAuthService.getCurrentUser(claims);
+
+		// then
+		assertEquals(1L, result.userId());
+		assertNull(result.publicKey());
 	}
 
 	private User createUser() {

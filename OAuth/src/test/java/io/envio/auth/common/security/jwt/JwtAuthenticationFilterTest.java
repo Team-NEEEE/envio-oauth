@@ -100,7 +100,7 @@ class JwtAuthenticationFilterTest {
 		final MockHttpServletResponse response = new MockHttpServletResponse();
 		final MockFilterChain filterChain = new MockFilterChain();
 		request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer invalid-token");
-		doThrow(new IllegalArgumentException("Invalid JWT."))
+		doThrow(new JwtParsingException("Invalid JWT."))
 			.when(jwtTokenProvider)
 			.parseAccessToken("invalid-token");
 
