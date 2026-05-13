@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,7 +23,13 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder(toBuilder = true)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "user_devices")
+@Table(
+	name = "user_devices",
+	uniqueConstraints = @UniqueConstraint(
+		name = "uk_user_devices_user_device_name",
+		columnNames = {"user_id", "device_name"}
+	)
+)
 public class UserDevice extends BaseEntity {
 
 	@Id
