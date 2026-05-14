@@ -51,7 +51,7 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 		String accessToken = jwtTokenProvider.createAccessToken(userId, githubId, email, role);
 		String refreshToken = jwtTokenProvider.createRefreshToken(userId, githubId, email, role);
 		Duration refreshTokenExpiration = jwtProperties.refreshTokenExpiration();
-		tokenRepository.save(String.valueOf(userId), refreshToken, refreshTokenExpiration);
+		tokenRepository.save(tokenKeyOf(userId), refreshToken, refreshTokenExpiration);
 
 		return OAuthLoginResDto.builder()
 			.accessToken(accessToken)
@@ -82,7 +82,7 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 	@Override
 	public AuthRefreshResDto refreshToken(final AuthRefreshReqDto reqDto) {
 		JwtClaims claims = parseRefreshToken(reqDto.refreshToken());
-		String tokenKey = String.valueOf(claims.userId());
+		String tokenKey = tokenKeyOf(claims.userId());
 		String savedRefreshToken = tokenRepository.findAndDelete(tokenKey)
 			.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
 
@@ -109,6 +109,7 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 			return new AuthRefreshResDto(accessToken, refreshToken);
 		} catch (BusinessException exception) {
 			if (exception.getErrorCode() == ErrorCode.USER_NOT_FOUND) {
+				log.warn("Refresh token used for non-existent userId: {}", claims.userId());
 				throw new BusinessException(ErrorCode.UNAUTHORIZED);
 			}
 			restoreRefreshToken(tokenKey, savedRefreshToken, exception);
@@ -121,7 +122,16 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 
 	@Override
 	public void logout(final JwtClaims claims) {
-		tokenRepository.delete(String.valueOf(claims.userId()));
+		try {
+			tokenRepository.delete(tokenKeyOf(claims.userId()));
+		} catch (RuntimeException exception) {
+			log.error("Failed to delete refresh token for userId: {}", claims.userId(), exception);
+			throw exception;
+		}
+	}
+
+	private String tokenKeyOf(final Long userId) {
+		return String.valueOf(userId);
 	}
 
 	private JwtClaims parseRefreshToken(final String refreshToken) {
