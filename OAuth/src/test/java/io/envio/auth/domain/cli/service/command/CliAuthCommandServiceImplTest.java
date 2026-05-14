@@ -129,8 +129,34 @@ class CliAuthCommandServiceImplTest {
 
 		RedisCliSession savedSession = sessionCaptor.getValue();
 		assertEquals(RedisCliSession.STATUS_SUCCESS, savedSession.getStatus());
-		assertEquals("123456", savedSession.getGithubId());
+		assertEquals("octocat", savedSession.getGithubId());
 		assertEquals("user@example.com", savedSession.getEmail());
+	}
+
+	@Test
+	@DisplayName("GitHub login is enough to complete callback")
+	void processGithubCallbackCompletesSessionWithoutNumericGithubId() {
+		// given
+		RedisCliSession session = pendingSession("session-id");
+		Map<String, Object> tokenResponse = Map.of("access_token", "access-token");
+		Map<String, Object> userInfo = new HashMap<>();
+		userInfo.put("login", "junyonglee0223");
+		userInfo.put("email", "junyonglee0223@users.noreply.github.com");
+
+		when(redisCliSessionRepository.findById("session-id")).thenReturn(Optional.of(session));
+		when(restTemplate.postForObject(eq(GITHUB_ACCESS_TOKEN_URL), any(HttpEntity.class), eq(Map.class)))
+			.thenReturn(tokenResponse);
+		when(restTemplate.exchange(eq(GITHUB_USER_URL), eq(HttpMethod.GET), any(HttpEntity.class), eq(Map.class)))
+			.thenReturn(ResponseEntity.ok(userInfo));
+
+		// when
+		commandService.processGithubCallback("code", "session-id");
+
+		// then
+		assertEquals(RedisCliSession.STATUS_SUCCESS, session.getStatus());
+		assertEquals("junyonglee0223", session.getGithubId());
+		assertEquals("junyonglee0223@users.noreply.github.com", session.getEmail());
+		verify(redisCliSessionRepository).save(session);
 	}
 
 	@Test
@@ -232,7 +258,7 @@ class CliAuthCommandServiceImplTest {
 	void processGithubCallbackThrowsExceptionWhenSessionIsNotPending() {
 		// given
 		when(redisCliSessionRepository.findById("session-id"))
-			.thenReturn(Optional.of(successSession("session-id", "123456", "user@example.com")));
+			.thenReturn(Optional.of(successSession("session-id", "octocat", "user@example.com")));
 
 		// when
 		BusinessException exception = assertThrows(
@@ -308,13 +334,15 @@ class CliAuthCommandServiceImplTest {
 	@DisplayName("new user and CLI device are registered from authenticated session")
 	void registerUserAndDeviceCreatesUserAndDevice() {
 		// given
-		RedisCliSession session = successSession("session-id", "123456", "user@example.com");
-		CliLoginSaveReqDto reqDto = saveRequest("123456", "Laptop");
-		User savedUser = createUser(1L, "123456", "user@example.com");
+		RedisCliSession session = successSession("session-id", "octocat", "user@example.com");
+		CliLoginSaveReqDto reqDto = saveRequest("octocat", "Laptop");
+		User savedUser = createUser(1L, "octocat", "user@example.com");
+		UserDevice savedUserDevice = createUserDevice(42L, savedUser, "Laptop");
 
-		when(userRepository.findByGithubId("123456")).thenReturn(Optional.empty());
+		when(userRepository.findByGithubId("octocat")).thenReturn(Optional.empty());
 		when(userRepository.saveAndFlush(any(User.class))).thenReturn(savedUser);
 		when(userDeviceRepository.existsByUserAndDeviceName(savedUser, "Laptop")).thenReturn(false);
+		when(userDeviceRepository.saveAndFlush(any(UserDevice.class))).thenReturn(savedUserDevice);
 
 		// when
 		CliLoginSaveResDto result = commandService.registerUserAndDevice(reqDto, session);
@@ -325,13 +353,15 @@ class CliAuthCommandServiceImplTest {
 		verify(userRepository).saveAndFlush(userCaptor.capture());
 		verify(userDeviceRepository).saveAndFlush(deviceCaptor.capture());
 
-		assertEquals("123456", userCaptor.getValue().getGithubId());
+		assertEquals("octocat", userCaptor.getValue().getGithubId());
 		assertEquals("user@example.com", userCaptor.getValue().getEmail());
 		assertEquals(UserRole.VIEWER, userCaptor.getValue().getRole());
 		assertEquals(savedUser, deviceCaptor.getValue().getUser());
 		assertEquals("Laptop", deviceCaptor.getValue().getDeviceName());
 		assertEquals("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey", deviceCaptor.getValue().getPublicKey());
-		assertEquals("123456", result.githubId());
+		assertEquals(1L, result.userId());
+		assertEquals(42L, result.deviceId());
+		assertEquals("octocat", result.githubId());
 		assertEquals("user@example.com", result.email());
 	}
 
@@ -339,12 +369,14 @@ class CliAuthCommandServiceImplTest {
 	@DisplayName("existing user email is updated before CLI device registration")
 	void registerUserAndDeviceUpdatesExistingUserEmail() {
 		// given
-		RedisCliSession session = successSession("session-id", "123456", "new@example.com");
-		CliLoginSaveReqDto reqDto = saveRequest("123456", "Desktop");
-		User existingUser = createUser(1L, "123456", "old@example.com");
+		RedisCliSession session = successSession("session-id", "octocat", "new@example.com");
+		CliLoginSaveReqDto reqDto = saveRequest("octocat", "Desktop");
+		User existingUser = createUser(1L, "octocat", "old@example.com");
+		UserDevice savedUserDevice = createUserDevice(42L, existingUser, "Desktop");
 
-		when(userRepository.findByGithubId("123456")).thenReturn(Optional.of(existingUser));
+		when(userRepository.findByGithubId("octocat")).thenReturn(Optional.of(existingUser));
 		when(userDeviceRepository.existsByUserAndDeviceName(existingUser, "Desktop")).thenReturn(false);
+		when(userDeviceRepository.saveAndFlush(any(UserDevice.class))).thenReturn(savedUserDevice);
 
 		// when
 		CliLoginSaveResDto result = commandService.registerUserAndDevice(reqDto, session);
@@ -352,6 +384,8 @@ class CliAuthCommandServiceImplTest {
 		// then
 		assertEquals("new@example.com", existingUser.getEmail());
 		assertEquals("new@example.com", result.email());
+		assertEquals(1L, result.userId());
+		assertEquals(42L, result.deviceId());
 		verify(userRepository, never()).saveAndFlush(any(User.class));
 		verify(userDeviceRepository).saveAndFlush(any(UserDevice.class));
 	}
@@ -360,11 +394,11 @@ class CliAuthCommandServiceImplTest {
 	@DisplayName("duplicated device name throws already exists exception")
 	void registerUserAndDeviceThrowsExceptionWhenDeviceNameAlreadyExists() {
 		// given
-		RedisCliSession session = successSession("session-id", "123456", "user@example.com");
-		CliLoginSaveReqDto reqDto = saveRequest("123456", "Duplicated");
-		User existingUser = createUser(1L, "123456", "user@example.com");
+		RedisCliSession session = successSession("session-id", "octocat", "user@example.com");
+		CliLoginSaveReqDto reqDto = saveRequest("octocat", "Duplicated");
+		User existingUser = createUser(1L, "octocat", "user@example.com");
 
-		when(userRepository.findByGithubId("123456")).thenReturn(Optional.of(existingUser));
+		when(userRepository.findByGithubId("octocat")).thenReturn(Optional.of(existingUser));
 		when(userDeviceRepository.existsByUserAndDeviceName(existingUser, "Duplicated")).thenReturn(true);
 
 		// when
@@ -382,11 +416,11 @@ class CliAuthCommandServiceImplTest {
 	@DisplayName("device unique constraint conflict throws already exists exception")
 	void registerUserAndDeviceThrowsExceptionWhenDeviceSaveConflicts() {
 		// given
-		RedisCliSession session = successSession("session-id", "123456", "user@example.com");
-		CliLoginSaveReqDto reqDto = saveRequest("123456", "Laptop");
-		User existingUser = createUser(1L, "123456", "user@example.com");
+		RedisCliSession session = successSession("session-id", "octocat", "user@example.com");
+		CliLoginSaveReqDto reqDto = saveRequest("octocat", "Laptop");
+		User existingUser = createUser(1L, "octocat", "user@example.com");
 
-		when(userRepository.findByGithubId("123456")).thenReturn(Optional.of(existingUser));
+		when(userRepository.findByGithubId("octocat")).thenReturn(Optional.of(existingUser));
 		when(userDeviceRepository.existsByUserAndDeviceName(existingUser, "Laptop")).thenReturn(false);
 		when(userDeviceRepository.saveAndFlush(any(UserDevice.class)))
 			.thenThrow(new DataIntegrityViolationException("duplicate user device"));
@@ -405,22 +439,26 @@ class CliAuthCommandServiceImplTest {
 	@DisplayName("duplicate user insert conflict returns existing user and registers device")
 	void registerUserAndDeviceFindsUserAfterDuplicateInsertConflict() {
 		// given
-		RedisCliSession session = successSession("session-id", "123456", "new@example.com");
-		CliLoginSaveReqDto reqDto = saveRequest("123456", "Laptop");
-		User existingUser = createUser(1L, "123456", "old@example.com");
+		RedisCliSession session = successSession("session-id", "octocat", "new@example.com");
+		CliLoginSaveReqDto reqDto = saveRequest("octocat", "Laptop");
+		User existingUser = createUser(1L, "octocat", "old@example.com");
+		UserDevice savedUserDevice = createUserDevice(42L, existingUser, "Laptop");
 
-		when(userRepository.findByGithubId("123456"))
+		when(userRepository.findByGithubId("octocat"))
 			.thenReturn(Optional.empty())
 			.thenReturn(Optional.of(existingUser));
 		when(userRepository.saveAndFlush(any(User.class)))
 			.thenThrow(new DataIntegrityViolationException("duplicate github id"));
 		when(userDeviceRepository.existsByUserAndDeviceName(existingUser, "Laptop")).thenReturn(false);
+		when(userDeviceRepository.saveAndFlush(any(UserDevice.class))).thenReturn(savedUserDevice);
 
 		// when
 		CliLoginSaveResDto result = commandService.registerUserAndDevice(reqDto, session);
 
 		// then
-		assertEquals("123456", result.githubId());
+		assertEquals("octocat", result.githubId());
+		assertEquals(1L, result.userId());
+		assertEquals(42L, result.deviceId());
 		assertEquals("new@example.com", existingUser.getEmail());
 		verify(userDeviceRepository).saveAndFlush(any(UserDevice.class));
 	}
@@ -458,6 +496,15 @@ class CliAuthCommandServiceImplTest {
 			.githubId(githubId)
 			.email(email)
 			.role(UserRole.VIEWER)
+			.build();
+	}
+
+	private UserDevice createUserDevice(final Long id, final User user, final String deviceName) {
+		return UserDevice.builder()
+			.id(id)
+			.user(user)
+			.deviceName(deviceName)
+			.publicKey("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey")
 			.build();
 	}
 }

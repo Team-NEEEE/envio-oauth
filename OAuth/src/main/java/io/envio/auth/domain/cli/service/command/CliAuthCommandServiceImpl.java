@@ -41,7 +41,6 @@ import lombok.extern.slf4j.Slf4j;
 public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 
 	private static final int EXPIRES_IN = 300;
-	private static final String GITHUB_ID_ATTRIBUTE = "id";
 	private static final String GITHUB_LOGIN_ATTRIBUTE = "login";
 	private static final String GITHUB_EMAIL_ATTRIBUTE = "email";
 	private static final String GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize";
@@ -140,11 +139,11 @@ public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 			throw new BusinessException(ErrorCode.GITHUB_OAUTH_FAILED);
 		}
 
-		if (userInfo == null || userInfo.get(GITHUB_ID_ATTRIBUTE) == null) {
+		if (userInfo == null) {
 			throw new BusinessException(ErrorCode.GITHUB_OAUTH_FAILED);
 		}
 
-		String githubId = String.valueOf(userInfo.get(GITHUB_ID_ATTRIBUTE));
+		String githubId = resolveGithubLogin(userInfo);
 		String email = resolveEmail(userInfo);
 		session.completeAuth(githubId, email);
 		redisCliSessionRepository.save(session);
@@ -166,8 +165,9 @@ public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 		}
 
 		UserDevice userDevice = CliAuthConverter.toUserDevice(reqDto, user);
+		UserDevice savedUserDevice;
 		try {
-			userDeviceRepository.saveAndFlush(userDevice);
+			savedUserDevice = userDeviceRepository.saveAndFlush(userDevice);
 		} catch (DataIntegrityViolationException exception) {
 			throw new BusinessException(ErrorCode.CLI_DEVICE_ALREADY_EXISTS);
 		}
@@ -175,7 +175,7 @@ public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 		log.info("[CliAuth] user device saved - githubId: {}, deviceName: {}",
 			session.getGithubId(), reqDto.deviceName());
 
-		return CliAuthConverter.toLoginSaveResDto(user);
+		return CliAuthConverter.toLoginSaveResDto(user, savedUserDevice);
 	}
 
 	private User findOrCreateUser(final RedisCliSession session) {
@@ -198,11 +198,15 @@ public class CliAuthCommandServiceImpl implements CliAuthCommandService {
 			return emailValue;
 		}
 
+		return resolveGithubLogin(userInfo) + "@users.noreply.github.com";
+	}
+
+	private String resolveGithubLogin(final Map<String, Object> userInfo) {
 		Object login = userInfo.get(GITHUB_LOGIN_ATTRIBUTE);
 		if (!(login instanceof String loginValue) || loginValue.isBlank()) {
 			throw new BusinessException(ErrorCode.GITHUB_OAUTH_FAILED);
 		}
 
-		return loginValue + "@users.noreply.github.com";
+		return loginValue;
 	}
 }

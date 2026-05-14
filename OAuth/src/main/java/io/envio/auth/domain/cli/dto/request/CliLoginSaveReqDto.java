@@ -1,5 +1,7 @@
 package io.envio.auth.domain.cli.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -18,11 +20,13 @@ public record CliLoginSaveReqDto(
 	String githubId,
 
 	@Schema(description = "CLI device name", example = "Mingi-MacBook-Pro")
+	@JsonAlias("device_name")
 	@NotBlank(message = "Device name is required.")
 	@Size(max = 255, message = "Device name must be 255 characters or fewer.")
 	String deviceName,
 
 	@Schema(description = "SSH public key used by the CLI", example = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...")
+	@JsonAlias("public_key")
 	@NotBlank(message = "Public key is required.")
 	@Pattern(
 		regexp = "^(ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp(256|384|521))\\s+[A-Za-z0-9+/=]+(?:\\s+.*)?$",
