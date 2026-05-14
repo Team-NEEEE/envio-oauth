@@ -109,7 +109,7 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 			return new AuthRefreshResDto(accessToken, refreshToken);
 		} catch (BusinessException exception) {
 			if (exception.getErrorCode() == ErrorCode.USER_NOT_FOUND) {
-				log.warn("Refresh token used for non-existent userId: {}", claims.userId());
+				log.warn("Refresh token used for non-existent userId: {}", claims.userId(), exception);
 				throw new BusinessException(ErrorCode.UNAUTHORIZED);
 			}
 			restoreRefreshToken(tokenKey, savedRefreshToken, exception);
@@ -122,12 +122,7 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 
 	@Override
 	public void logout(final JwtClaims claims) {
-		try {
-			tokenRepository.delete(tokenKeyOf(claims.userId()));
-		} catch (RuntimeException exception) {
-			log.error("Failed to delete refresh token for userId: {}", claims.userId(), exception);
-			throw exception;
-		}
+		tokenRepository.delete(tokenKeyOf(claims.userId()));
 	}
 
 	private String tokenKeyOf(final Long userId) {

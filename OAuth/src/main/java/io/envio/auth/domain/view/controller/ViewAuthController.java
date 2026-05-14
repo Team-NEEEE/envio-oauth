@@ -55,6 +55,7 @@ public class ViewAuthController {
 	public ResponseEntity<BaseResponse<Void>> logout(
 		@AuthenticationPrincipal final JwtClaims claims
 	) {
+		// Spring Security normally blocks unauthenticated requests before this point.
 		if (claims == null) {
 			throw new BusinessException(ErrorCode.UNAUTHORIZED);
 		}
