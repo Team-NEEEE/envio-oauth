@@ -3,7 +3,6 @@ package io.envio.auth.domain.view.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -203,6 +202,7 @@ class ViewAuthServiceImplTest {
 		final JwtClaims claims = new JwtClaims(1L, "123456", "user@example.com", "VIEWER");
 		when(jwtTokenProvider.parseRefreshToken("refresh-token")).thenReturn(claims);
 		when(tokenRepository.findAndDelete("1")).thenReturn(Optional.of("other-refresh-token"));
+		when(jwtProperties.refreshTokenExpiration()).thenReturn(REFRESH_TOKEN_EXPIRATION);
 
 		// when
 		final BusinessException exception = assertThrows(
@@ -212,7 +212,7 @@ class ViewAuthServiceImplTest {
 
 		// then
 		assertEquals(ErrorCode.UNAUTHORIZED, exception.getErrorCode());
-		verify(tokenRepository, never()).save("1", "other-refresh-token", REFRESH_TOKEN_EXPIRATION);
+		verify(tokenRepository).save("1", "other-refresh-token", REFRESH_TOKEN_EXPIRATION);
 	}
 
 	@Test

@@ -27,9 +27,11 @@ import io.envio.auth.domain.view.dto.response.AuthRefreshResDto;
 import io.envio.auth.domain.view.dto.response.OAuthLoginResDto;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ViewAuthServiceImpl implements ViewAuthService {
 
 	private final JwtTokenProvider jwtTokenProvider;
@@ -85,6 +87,8 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 			.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
 
 		if (!secureEquals(savedRefreshToken, reqDto.refreshToken())) {
+			log.warn("Refresh token mismatch detected for userId: {}", claims.userId());
+			restoreRefreshToken(tokenKey, savedRefreshToken);
 			throw new BusinessException(ErrorCode.UNAUTHORIZED);
 		}
 
@@ -105,7 +109,7 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 			tokenRepository.save(tokenKey, refreshToken, jwtProperties.refreshTokenExpiration());
 			return new AuthRefreshResDto(accessToken, refreshToken);
 		} catch (RuntimeException exception) {
-			tokenRepository.save(tokenKey, savedRefreshToken, jwtProperties.refreshTokenExpiration());
+			restoreRefreshToken(tokenKey, savedRefreshToken);
 			throw exception;
 		}
 	}
@@ -123,6 +127,10 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 			savedRefreshToken.getBytes(StandardCharsets.UTF_8),
 			requestRefreshToken.getBytes(StandardCharsets.UTF_8)
 		);
+	}
+
+	private void restoreRefreshToken(final String tokenKey, final String refreshToken) {
+		tokenRepository.save(tokenKey, refreshToken, jwtProperties.refreshTokenExpiration());
 	}
 
 	private Long getRequiredLongAttribute(final OAuth2User oauth2User, final String attributeName) {
