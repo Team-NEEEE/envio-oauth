@@ -107,10 +107,21 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 			);
 			tokenRepository.save(tokenKey, refreshToken, jwtProperties.refreshTokenExpiration());
 			return new AuthRefreshResDto(accessToken, refreshToken);
+		} catch (BusinessException exception) {
+			if (exception.getErrorCode() == ErrorCode.USER_NOT_FOUND) {
+				throw new BusinessException(ErrorCode.UNAUTHORIZED);
+			}
+			restoreRefreshToken(tokenKey, savedRefreshToken, exception);
+			throw exception;
 		} catch (RuntimeException exception) {
 			restoreRefreshToken(tokenKey, savedRefreshToken, exception);
 			throw exception;
 		}
+	}
+
+	@Override
+	public void logout(final JwtClaims claims) {
+		tokenRepository.delete(String.valueOf(claims.userId()));
 	}
 
 	private JwtClaims parseRefreshToken(final String refreshToken) {

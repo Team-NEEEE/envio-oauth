@@ -27,6 +27,7 @@ public class ViewAuthController {
 
 	private static final String ME_SUCCESS_MESSAGE = "사용자 정보 조회에 성공했습니다.";
 	private static final String REFRESH_SUCCESS_MESSAGE = "토큰이 재발급되었습니다.";
+	private static final String LOGOUT_SUCCESS_MESSAGE = "로그아웃이 완료되었습니다.";
 
 	private final ViewAuthService viewAuthService;
 
@@ -48,5 +49,17 @@ public class ViewAuthController {
 	) {
 		AuthRefreshResDto response = viewAuthService.refreshToken(reqDto);
 		return ResponseEntity.ok(BaseResponse.ok(REFRESH_SUCCESS_MESSAGE, response));
+	}
+
+	@PostMapping("/logout")
+	public ResponseEntity<BaseResponse<Void>> logout(
+		@AuthenticationPrincipal final JwtClaims claims
+	) {
+		if (claims == null) {
+			throw new BusinessException(ErrorCode.UNAUTHORIZED);
+		}
+
+		viewAuthService.logout(claims);
+		return ResponseEntity.ok(BaseResponse.ok(LOGOUT_SUCCESS_MESSAGE, null));
 	}
 }

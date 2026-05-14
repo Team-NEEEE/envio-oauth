@@ -1,6 +1,7 @@
 package io.envio.auth.domain.view.controller;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -12,16 +13,23 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
+import org.springframework.web.bind.support.WebDataBinderFactory;
+import org.springframework.web.context.request.NativeWebRequest;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.method.support.ModelAndViewContainer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.envio.auth.common.error.ErrorCode;
 import io.envio.auth.common.error.exception.BusinessException;
 import io.envio.auth.common.error.exception.handler.GlobalExceptionHandler;
+import io.envio.auth.common.security.jwt.JwtClaims;
 import io.envio.auth.domain.view.dto.request.AuthRefreshReqDto;
 import io.envio.auth.domain.view.dto.response.AuthRefreshResDto;
 import io.envio.auth.domain.view.service.ViewAuthService;
@@ -45,6 +53,7 @@ class ViewAuthControllerTest {
 
 		mockMvc = MockMvcBuilders.standaloneSetup(new ViewAuthController(viewAuthService))
 			.setControllerAdvice(new GlobalExceptionHandler())
+			.setCustomArgumentResolvers(new JwtClaimsArgumentResolver())
 			.setValidator(validator)
 			.build();
 	}
@@ -95,5 +104,50 @@ class ViewAuthControllerTest {
 				.content(objectMapper.writeValueAsString(reqDto)))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.error.message", containsString("Authentication")));
+	}
+
+	@Test
+	@DisplayName("로그아웃 요청이 성공하면 200 응답을 반환한다")
+	void logoutReturnsOk() throws Exception {
+		// given
+		final JwtClaims claims = new JwtClaims(1L, "123456", "user@example.com", "VIEWER");
+
+		// when & then
+		mockMvc.perform(post("/api/auth/logout")
+				.contentType(MediaType.APPLICATION_JSON)
+				.requestAttr("claims", claims))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.message").value("로그아웃이 완료되었습니다."));
+
+		verify(viewAuthService).logout(claims);
+	}
+
+	@Test
+	@DisplayName("인증 정보 없이 로그아웃을 요청하면 401 응답을 반환한다")
+	void logoutReturnsUnauthorizedWhenClaimsIsMissing() throws Exception {
+		// when & then
+		mockMvc.perform(post("/api/auth/logout")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{}"))
+			.andExpect(status().isUnauthorized());
+	}
+
+	private static class JwtClaimsArgumentResolver implements HandlerMethodArgumentResolver {
+
+		@Override
+		public boolean supportsParameter(final MethodParameter parameter) {
+			return parameter.hasParameterAnnotation(AuthenticationPrincipal.class)
+				&& JwtClaims.class.isAssignableFrom(parameter.getParameterType());
+		}
+
+		@Override
+		public Object resolveArgument(
+			final MethodParameter parameter,
+			final ModelAndViewContainer mavContainer,
+			final NativeWebRequest webRequest,
+			final WebDataBinderFactory binderFactory
+		) {
+			return webRequest.getAttribute("claims", NativeWebRequest.SCOPE_REQUEST);
+		}
 	}
 }
