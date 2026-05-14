@@ -88,25 +88,26 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 			throw new BusinessException(ErrorCode.UNAUTHORIZED);
 		}
 
-		User user = userQueryService.findById(claims.userId());
-		String accessToken = jwtTokenProvider.createAccessToken(
-			user.getId(),
-			user.getGithubId(),
-			user.getEmail(),
-			user.getRole().name()
-		);
-		String refreshToken = jwtTokenProvider.createRefreshToken(
-			user.getId(),
-			user.getGithubId(),
-			user.getEmail(),
-			user.getRole().name()
-		);
-		tokenRepository.save(tokenKey, refreshToken, jwtProperties.refreshTokenExpiration());
-
-		return AuthRefreshResDto.builder()
-			.accessToken(accessToken)
-			.refreshToken(refreshToken)
-			.build();
+		try {
+			User user = userQueryService.findById(claims.userId());
+			String accessToken = jwtTokenProvider.createAccessToken(
+				user.getId(),
+				user.getGithubId(),
+				user.getEmail(),
+				user.getRole().name()
+			);
+			String refreshToken = jwtTokenProvider.createRefreshToken(
+				user.getId(),
+				user.getGithubId(),
+				user.getEmail(),
+				user.getRole().name()
+			);
+			tokenRepository.save(tokenKey, refreshToken, jwtProperties.refreshTokenExpiration());
+			return new AuthRefreshResDto(accessToken, refreshToken);
+		} catch (RuntimeException exception) {
+			tokenRepository.save(tokenKey, savedRefreshToken, jwtProperties.refreshTokenExpiration());
+			throw exception;
+		}
 	}
 
 	private JwtClaims parseRefreshToken(final String refreshToken) {

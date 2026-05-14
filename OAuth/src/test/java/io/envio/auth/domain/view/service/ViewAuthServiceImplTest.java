@@ -3,6 +3,7 @@ package io.envio.auth.domain.view.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -173,6 +174,28 @@ class ViewAuthServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("새 토큰 발급 중 예외가 발생하면 기존 refreshToken을 복원한다")
+	void refreshTokenRestoresStoredTokenWhenReissueFails() {
+		// given
+		final AuthRefreshReqDto reqDto = new AuthRefreshReqDto("refresh-token");
+		final JwtClaims claims = new JwtClaims(1L, "123456", "user@example.com", "VIEWER");
+		when(jwtTokenProvider.parseRefreshToken("refresh-token")).thenReturn(claims);
+		when(tokenRepository.findAndDelete("1")).thenReturn(Optional.of("refresh-token"));
+		when(userQueryService.findById(1L)).thenThrow(new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR));
+		when(jwtProperties.refreshTokenExpiration()).thenReturn(REFRESH_TOKEN_EXPIRATION);
+
+		// when
+		final BusinessException exception = assertThrows(
+			BusinessException.class,
+			() -> viewAuthService.refreshToken(reqDto)
+		);
+
+		// then
+		assertEquals(ErrorCode.INTERNAL_SERVER_ERROR, exception.getErrorCode());
+		verify(tokenRepository).save("1", "refresh-token", REFRESH_TOKEN_EXPIRATION);
+	}
+
+	@Test
 	@DisplayName("저장된 refreshToken과 요청 토큰이 다르면 인증 예외를 던진다")
 	void refreshTokenThrowsExceptionWhenStoredTokenDoesNotMatch() {
 		// given
@@ -189,6 +212,7 @@ class ViewAuthServiceImplTest {
 
 		// then
 		assertEquals(ErrorCode.UNAUTHORIZED, exception.getErrorCode());
+		verify(tokenRepository, never()).save("1", "other-refresh-token", REFRESH_TOKEN_EXPIRATION);
 	}
 
 	@Test
