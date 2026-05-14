@@ -3,6 +3,7 @@ package io.envio.auth.domain.view.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -196,6 +197,27 @@ class ViewAuthServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("사용자를 찾을 수 없으면 인증 예외를 던지고 refreshToken을 복원하지 않는다")
+	void refreshTokenThrowsUnauthorizedAndDoesNotRestoreTokenWhenUserNotFound() {
+		// given
+		final AuthRefreshReqDto reqDto = new AuthRefreshReqDto("refresh-token");
+		final JwtClaims claims = new JwtClaims(1L, "123456", "user@example.com", "VIEWER");
+		when(jwtTokenProvider.parseRefreshToken("refresh-token")).thenReturn(claims);
+		when(tokenRepository.findAndDelete("1")).thenReturn(Optional.of("refresh-token"));
+		when(userQueryService.findById(1L)).thenThrow(new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+		// when
+		final BusinessException exception = assertThrows(
+			BusinessException.class,
+			() -> viewAuthService.refreshToken(reqDto)
+		);
+
+		// then
+		assertEquals(ErrorCode.UNAUTHORIZED, exception.getErrorCode());
+		verify(tokenRepository, never()).save("1", "refresh-token", REFRESH_TOKEN_EXPIRATION);
+	}
+
+	@Test
 	@DisplayName("저장된 refreshToken과 요청 토큰이 다르면 인증 예외를 던진다")
 	void refreshTokenThrowsExceptionWhenStoredTokenDoesNotMatch() {
 		// given
@@ -250,6 +272,37 @@ class ViewAuthServiceImplTest {
 
 		// then
 		assertEquals(ErrorCode.UNAUTHORIZED, exception.getErrorCode());
+	}
+
+	@Test
+	@DisplayName("로그아웃하면 현재 사용자의 refreshToken을 삭제한다")
+	void logoutDeletesCurrentUserRefreshToken() {
+		// given: tokenRepository.delete() is a void method, so no stubbing is needed.
+		final JwtClaims claims = new JwtClaims(1L, "123456", "user@example.com", "VIEWER");
+
+		// when
+		viewAuthService.logout(claims);
+
+		// then
+		verify(tokenRepository).delete("1");
+	}
+
+	@Test
+	@DisplayName("로그아웃 중 refreshToken 삭제에 실패하면 예외를 전파한다")
+	void logoutPropagatesExceptionWhenRefreshTokenDeleteFails() {
+		// given
+		final JwtClaims claims = new JwtClaims(1L, "123456", "user@example.com", "VIEWER");
+		final RuntimeException redisException = new RuntimeException("Redis is unavailable.");
+		doThrow(redisException).when(tokenRepository).delete("1");
+
+		// when
+		final RuntimeException exception = assertThrows(
+			RuntimeException.class,
+			() -> viewAuthService.logout(claims)
+		);
+
+		// then
+		assertEquals(redisException, exception);
 	}
 
 	private User createUser() {

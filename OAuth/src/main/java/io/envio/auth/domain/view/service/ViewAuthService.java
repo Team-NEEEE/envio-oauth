@@ -15,4 +15,6 @@ public interface ViewAuthService {
 	AuthMeResDto getCurrentUser(final JwtClaims claims);
 
 	AuthRefreshResDto refreshToken(final AuthRefreshReqDto reqDto);
+
+	void logout(final JwtClaims claims);
 }
