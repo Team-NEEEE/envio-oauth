@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.envio.auth.common.error.ErrorCode;
+import io.envio.auth.common.error.exception.BusinessException;
 import io.envio.auth.common.response.BaseResponse;
 import io.envio.auth.common.security.jwt.JwtClaims;
 import io.envio.auth.domain.view.dto.request.AuthRefreshReqDto;
@@ -32,6 +34,10 @@ public class ViewAuthController {
 	public ResponseEntity<BaseResponse<AuthMeResDto>> getCurrentUser(
 		@AuthenticationPrincipal final JwtClaims claims
 	) {
+		if (claims == null) {
+			throw new BusinessException(ErrorCode.UNAUTHORIZED);
+		}
+
 		AuthMeResDto response = viewAuthService.getCurrentUser(claims);
 		return ResponseEntity.ok(BaseResponse.ok(ME_SUCCESS_MESSAGE, response));
 	}
