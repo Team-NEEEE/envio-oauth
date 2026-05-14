@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.envio.auth.domain.cli.dto.request.CliLoginSaveReqDto;
 import io.envio.auth.domain.cli.dto.response.CliLoginSaveResDto;
 import io.envio.auth.domain.cli.dto.response.CliLoginStartResDto;
@@ -35,7 +38,7 @@ class CliAuthConverterTest {
 		RedisCliSession session = RedisCliSession.builder()
 			.id("session-id")
 			.status(RedisCliSession.STATUS_SUCCESS)
-			.githubId("123456")
+			.githubId("octocat")
 			.email("user@example.com")
 			.expiresIn(300)
 			.build();
@@ -45,7 +48,7 @@ class CliAuthConverterTest {
 
 		// then
 		assertEquals(RedisCliSession.STATUS_SUCCESS, resDto.status());
-		assertEquals("123456", resDto.githubId());
+		assertEquals("octocat", resDto.githubId());
 		assertEquals("user@example.com", resDto.email());
 	}
 
@@ -54,7 +57,7 @@ class CliAuthConverterTest {
 	void toUserMapsSession() {
 		// given
 		RedisCliSession session = RedisCliSession.builder()
-			.githubId("123456")
+			.githubId("octocat")
 			.email("user@example.com")
 			.build();
 
@@ -62,7 +65,7 @@ class CliAuthConverterTest {
 		User user = CliAuthConverter.toUser(session);
 
 		// then
-		assertEquals("123456", user.getGithubId());
+		assertEquals("octocat", user.getGithubId());
 		assertEquals("user@example.com", user.getEmail());
 		assertEquals(UserRole.VIEWER, user.getRole());
 	}
@@ -88,19 +91,43 @@ class CliAuthConverterTest {
 	void toLoginSaveResDtoMapsUser() {
 		// given
 		User user = createUser();
+		UserDevice userDevice = createUserDevice(user);
 
 		// when
-		CliLoginSaveResDto resDto = CliAuthConverter.toLoginSaveResDto(user);
+		CliLoginSaveResDto resDto = CliAuthConverter.toLoginSaveResDto(user, userDevice);
 
 		// then
-		assertEquals("123456", resDto.githubId());
+		assertEquals(1L, resDto.userId());
+		assertEquals(42L, resDto.deviceId());
+		assertEquals("octocat", resDto.githubId());
 		assertEquals("user@example.com", resDto.email());
+	}
+
+	@Test
+	@DisplayName("save response uses CLI contract field names")
+	void cliLoginSaveResDtoSerializesUserAndDeviceIdsAsSnakeCase() throws Exception {
+		// given
+		CliLoginSaveResDto resDto = CliLoginSaveResDto.builder()
+			.userId(1L)
+			.deviceId(42L)
+			.githubId("octocat")
+			.email("user@example.com")
+			.build();
+		ObjectMapper objectMapper = new ObjectMapper();
+
+		// when
+		JsonNode json = objectMapper.readTree(objectMapper.writeValueAsString(resDto));
+
+		// then
+		assertEquals(1L, json.get("user_id").asLong());
+		assertEquals(42L, json.get("device_id").asLong());
+		assertEquals("octocat", json.get("githubId").asText());
 	}
 
 	private CliLoginSaveReqDto saveRequest(final String deviceName) {
 		return CliLoginSaveReqDto.builder()
 			.loginSessionId("session-id")
-			.githubId("123456")
+			.githubId("octocat")
 			.deviceName(deviceName)
 			.publicKey("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey")
 			.build();
@@ -109,9 +136,18 @@ class CliAuthConverterTest {
 	private User createUser() {
 		return User.builder()
 			.id(1L)
-			.githubId("123456")
+			.githubId("octocat")
 			.email("user@example.com")
 			.role(UserRole.VIEWER)
+			.build();
+	}
+
+	private UserDevice createUserDevice(final User user) {
+		return UserDevice.builder()
+			.id(42L)
+			.user(user)
+			.deviceName("Laptop")
+			.publicKey("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey")
 			.build();
 	}
 }

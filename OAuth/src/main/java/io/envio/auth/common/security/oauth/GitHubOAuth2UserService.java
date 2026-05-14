@@ -22,7 +22,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class GitHubOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
 
-	private static final String GITHUB_ID_ATTRIBUTE = "id";
 	private static final String GITHUB_LOGIN_ATTRIBUTE = "login";
 	private static final String GITHUB_EMAIL_ATTRIBUTE = "email";
 	private static final String ROLE_PREFIX = "ROLE_";
@@ -35,7 +34,7 @@ public class GitHubOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 		OAuth2User oauth2User = delegate.loadUser(userRequest);
 		Map<String, Object> attributes = new HashMap<>(oauth2User.getAttributes());
 
-		String githubId = String.valueOf(attributes.get(GITHUB_ID_ATTRIBUTE));
+		String githubId = resolveGithubLogin(attributes);
 		String email = resolveEmail(attributes);
 		User user = oauthUserService.findOrCreateGithubUser(githubId, email);
 
@@ -49,6 +48,15 @@ public class GitHubOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 			attributes,
 			GITHUB_LOGIN_ATTRIBUTE
 		);
+	}
+
+	private String resolveGithubLogin(final Map<String, Object> attributes) {
+		Object login = attributes.get(GITHUB_LOGIN_ATTRIBUTE);
+		if (login instanceof String loginValue && !loginValue.isBlank()) {
+			return loginValue;
+		}
+
+		throw new OAuth2AuthenticationException("GitHub login is required.");
 	}
 
 	private String resolveEmail(final Map<String, Object> attributes) {

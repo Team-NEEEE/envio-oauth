@@ -91,6 +91,8 @@ class CliAuthFacadeServiceImplTest {
 		CliLoginSaveReqDto reqDto = saveRequest();
 		RedisCliSession session = successSession();
 		CliLoginSaveResDto saveResponse = CliLoginSaveResDto.builder()
+			.userId(1L)
+			.deviceId(42L)
 			.githubId("123456")
 			.email("user@example.com")
 			.build();

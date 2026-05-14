@@ -40,8 +40,10 @@ public class CliAuthConverter {
 			.build();
 	}
 
-	public CliLoginSaveResDto toLoginSaveResDto(final User user) {
+	public CliLoginSaveResDto toLoginSaveResDto(final User user, final UserDevice userDevice) {
 		return CliLoginSaveResDto.builder()
+			.userId(user.getId())
+			.deviceId(userDevice.getId())
 			.githubId(user.getGithubId())
 			.email(user.getEmail())
 			.build();
