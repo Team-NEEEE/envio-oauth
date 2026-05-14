@@ -87,8 +87,7 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 			.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
 
 		if (!secureEquals(savedRefreshToken, reqDto.refreshToken())) {
-			log.warn("Refresh token mismatch detected for userId: {}", claims.userId());
-			restoreRefreshToken(tokenKey, savedRefreshToken);
+			log.warn("Refresh token reuse detected for userId: {}. Current session invalidated.", claims.userId());
 			throw new BusinessException(ErrorCode.UNAUTHORIZED);
 		}
 
@@ -109,7 +108,7 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 			tokenRepository.save(tokenKey, refreshToken, jwtProperties.refreshTokenExpiration());
 			return new AuthRefreshResDto(accessToken, refreshToken);
 		} catch (RuntimeException exception) {
-			restoreRefreshToken(tokenKey, savedRefreshToken);
+			restoreRefreshToken(tokenKey, savedRefreshToken, exception);
 			throw exception;
 		}
 	}
@@ -129,8 +128,17 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 		);
 	}
 
-	private void restoreRefreshToken(final String tokenKey, final String refreshToken) {
-		tokenRepository.save(tokenKey, refreshToken, jwtProperties.refreshTokenExpiration());
+	private void restoreRefreshToken(
+		final String tokenKey,
+		final String refreshToken,
+		final RuntimeException originalException
+	) {
+		try {
+			tokenRepository.save(tokenKey, refreshToken, jwtProperties.refreshTokenExpiration());
+		} catch (RuntimeException restoreException) {
+			log.error("Failed to restore refresh token for userId: {}", tokenKey, restoreException);
+			originalException.addSuppressed(restoreException);
+		}
 	}
 
 	private Long getRequiredLongAttribute(final OAuth2User oauth2User, final String attributeName) {
