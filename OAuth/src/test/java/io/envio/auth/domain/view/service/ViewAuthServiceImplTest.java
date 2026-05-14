@@ -3,6 +3,7 @@ package io.envio.auth.domain.view.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -19,7 +20,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
 import io.envio.auth.common.config.properties.JwtProperties;
+import io.envio.auth.common.error.ErrorCode;
+import io.envio.auth.common.error.exception.BusinessException;
 import io.envio.auth.common.security.jwt.JwtClaims;
+import io.envio.auth.common.security.jwt.JwtParsingException;
 import io.envio.auth.common.security.jwt.JwtTokenProvider;
 import io.envio.auth.common.security.token.TokenRepository;
 import io.envio.auth.domain.user.entity.User;
@@ -27,7 +31,9 @@ import io.envio.auth.domain.user.entity.UserDevice;
 import io.envio.auth.domain.user.entity.UserRole;
 import io.envio.auth.domain.user.service.query.UserDeviceQueryService;
 import io.envio.auth.domain.user.service.query.UserQueryService;
+import io.envio.auth.domain.view.dto.request.AuthRefreshReqDto;
 import io.envio.auth.domain.view.dto.response.AuthMeResDto;
+import io.envio.auth.domain.view.dto.response.AuthRefreshResDto;
 import io.envio.auth.domain.view.dto.response.OAuthLoginResDto;
 
 @ExtendWith(MockitoExtension.class)
@@ -140,6 +146,110 @@ class ViewAuthServiceImplTest {
 		// then
 		assertEquals(1L, result.userId());
 		assertNull(result.publicKey());
+	}
+
+	@Test
+	@DisplayName("저장된 refreshToken이 일치하면 새 accessToken과 refreshToken을 발급한다")
+	void refreshTokenReturnsNewTokensWhenStoredTokenMatches() {
+		// given
+		final AuthRefreshReqDto reqDto = new AuthRefreshReqDto("refresh-token");
+		final JwtClaims claims = new JwtClaims(1L, "123456", "user@example.com", "VIEWER");
+		final User user = createUser();
+		when(jwtTokenProvider.parseRefreshToken("refresh-token")).thenReturn(claims);
+		when(tokenRepository.findAndDelete("1")).thenReturn(Optional.of("refresh-token"));
+		when(userQueryService.findById(1L)).thenReturn(user);
+		when(jwtTokenProvider.createAccessToken(1L, "123456", "user@example.com", "VIEWER"))
+			.thenReturn("new-access-token");
+		when(jwtTokenProvider.createRefreshToken(1L, "123456", "user@example.com", "VIEWER"))
+			.thenReturn("new-refresh-token");
+		when(jwtProperties.refreshTokenExpiration()).thenReturn(REFRESH_TOKEN_EXPIRATION);
+
+		// when
+		final AuthRefreshResDto result = viewAuthService.refreshToken(reqDto);
+
+		// then
+		assertEquals("new-access-token", result.accessToken());
+		assertEquals("new-refresh-token", result.refreshToken());
+		verify(tokenRepository).save("1", "new-refresh-token", REFRESH_TOKEN_EXPIRATION);
+	}
+
+	@Test
+	@DisplayName("새 토큰 발급 중 예외가 발생하면 기존 refreshToken을 복원한다")
+	void refreshTokenRestoresStoredTokenWhenReissueFails() {
+		// given
+		final AuthRefreshReqDto reqDto = new AuthRefreshReqDto("refresh-token");
+		final JwtClaims claims = new JwtClaims(1L, "123456", "user@example.com", "VIEWER");
+		when(jwtTokenProvider.parseRefreshToken("refresh-token")).thenReturn(claims);
+		when(tokenRepository.findAndDelete("1")).thenReturn(Optional.of("refresh-token"));
+		when(userQueryService.findById(1L)).thenThrow(new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR));
+		when(jwtProperties.refreshTokenExpiration()).thenReturn(REFRESH_TOKEN_EXPIRATION);
+
+		// when
+		final BusinessException exception = assertThrows(
+			BusinessException.class,
+			() -> viewAuthService.refreshToken(reqDto)
+		);
+
+		// then
+		assertEquals(ErrorCode.INTERNAL_SERVER_ERROR, exception.getErrorCode());
+		verify(tokenRepository).save("1", "refresh-token", REFRESH_TOKEN_EXPIRATION);
+	}
+
+	@Test
+	@DisplayName("저장된 refreshToken과 요청 토큰이 다르면 인증 예외를 던진다")
+	void refreshTokenThrowsExceptionWhenStoredTokenDoesNotMatch() {
+		// given
+		final AuthRefreshReqDto reqDto = new AuthRefreshReqDto("refresh-token");
+		final JwtClaims claims = new JwtClaims(1L, "123456", "user@example.com", "VIEWER");
+		when(jwtTokenProvider.parseRefreshToken("refresh-token")).thenReturn(claims);
+		when(tokenRepository.findAndDelete("1")).thenReturn(Optional.of("other-refresh-token"));
+
+		// when
+		final BusinessException exception = assertThrows(
+			BusinessException.class,
+			() -> viewAuthService.refreshToken(reqDto)
+		);
+
+		// then
+		assertEquals(ErrorCode.UNAUTHORIZED, exception.getErrorCode());
+		verify(tokenRepository, never()).save("1", "other-refresh-token", REFRESH_TOKEN_EXPIRATION);
+	}
+
+	@Test
+	@DisplayName("Redis에 저장된 refreshToken이 없으면 인증 예외를 던진다")
+	void refreshTokenThrowsExceptionWhenStoredTokenNotFound() {
+		// given
+		final AuthRefreshReqDto reqDto = new AuthRefreshReqDto("refresh-token");
+		final JwtClaims claims = new JwtClaims(1L, "123456", "user@example.com", "VIEWER");
+		when(jwtTokenProvider.parseRefreshToken("refresh-token")).thenReturn(claims);
+		when(tokenRepository.findAndDelete("1")).thenReturn(Optional.empty());
+
+		// when
+		final BusinessException exception = assertThrows(
+			BusinessException.class,
+			() -> viewAuthService.refreshToken(reqDto)
+		);
+
+		// then
+		assertEquals(ErrorCode.UNAUTHORIZED, exception.getErrorCode());
+	}
+
+	@Test
+	@DisplayName("refreshToken 파싱에 실패하면 인증 예외를 던진다")
+	void refreshTokenThrowsExceptionWhenTokenParsingFails() {
+		// given
+		final AuthRefreshReqDto reqDto = new AuthRefreshReqDto("invalid-refresh-token");
+		when(jwtTokenProvider.parseRefreshToken("invalid-refresh-token"))
+			.thenThrow(new JwtParsingException("Invalid JWT."));
+
+		// when
+		final BusinessException exception = assertThrows(
+			BusinessException.class,
+			() -> viewAuthService.refreshToken(reqDto)
+		);
+
+		// then
+		assertEquals(ErrorCode.UNAUTHORIZED, exception.getErrorCode());
 	}
 
 	private User createUser() {

@@ -9,5 +9,7 @@ public interface TokenRepository {
 
 	Optional<String> find(final String key);
 
+	Optional<String> findAndDelete(final String key);
+
 	void delete(final String key);
 }

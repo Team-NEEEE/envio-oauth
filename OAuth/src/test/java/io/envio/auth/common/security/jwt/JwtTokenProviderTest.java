@@ -130,6 +130,22 @@ class JwtTokenProviderTest {
 	}
 
 	@Test
+	@DisplayName("유효한 refreshToken을 파싱하면 JWT claims를 반환한다")
+	void parseRefreshTokenReturnsClaims() {
+		// given
+		final String token = jwtTokenProvider.createRefreshToken(1L, "123456", "user@example.com", "VIEWER");
+
+		// when
+		final JwtClaims claims = jwtTokenProvider.parseRefreshToken(token);
+
+		// then
+		assertEquals(1L, claims.userId());
+		assertEquals("123456", claims.githubId());
+		assertEquals("user@example.com", claims.email());
+		assertEquals("VIEWER", claims.role());
+	}
+
+	@Test
 	@DisplayName("refreshToken을 accessToken으로 파싱하면 예외를 던진다")
 	void parseAccessTokenThrowsExceptionWhenTokenTypeIsRefresh() {
 		// given
@@ -137,6 +153,16 @@ class JwtTokenProviderTest {
 
 		// when & then
 		assertThrows(JwtParsingException.class, () -> jwtTokenProvider.parseAccessToken(refreshToken));
+	}
+
+	@Test
+	@DisplayName("accessToken을 refreshToken으로 파싱하면 예외를 던진다")
+	void parseRefreshTokenThrowsExceptionWhenTokenTypeIsAccess() {
+		// given
+		final String accessToken = jwtTokenProvider.createAccessToken(1L, "123456", "user@example.com", "VIEWER");
+
+		// when & then
+		assertThrows(JwtParsingException.class, () -> jwtTokenProvider.parseRefreshToken(accessToken));
 	}
 
 	@Test
