@@ -2,7 +2,7 @@
 # 빌드용 이미지
 # =========================
 # Gradle과 JDK가 포함된 이미지 사용
-FROM gradle:8.14.3-jdk21 AS builder
+FROM gradle:8.14.3-jdk25 AS builder
 
 # 작업 디렉토리 설정
 WORKDIR /build
@@ -21,7 +21,7 @@ RUN gradle clean bootJar
 # =========================
 # 실제 실행은 가벼운 JRE 이미지 사용
 # 경량 모델 사용 X
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:25-jre
 
 # 작업 디렉토리 설정
 WORKDIR /app
