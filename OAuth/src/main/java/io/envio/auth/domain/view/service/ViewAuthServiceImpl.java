@@ -1,5 +1,7 @@
 package io.envio.auth.domain.view.service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.Optional;
 
@@ -9,14 +11,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import io.envio.auth.common.config.properties.JwtProperties;
+import io.envio.auth.common.error.ErrorCode;
+import io.envio.auth.common.error.exception.BusinessException;
 import io.envio.auth.common.security.jwt.JwtClaims;
+import io.envio.auth.common.security.jwt.JwtParsingException;
 import io.envio.auth.common.security.jwt.JwtTokenProvider;
 import io.envio.auth.common.security.token.TokenRepository;
 import io.envio.auth.domain.user.entity.User;
 import io.envio.auth.domain.user.entity.UserDevice;
 import io.envio.auth.domain.user.service.query.UserDeviceQueryService;
 import io.envio.auth.domain.user.service.query.UserQueryService;
+import io.envio.auth.domain.view.dto.request.AuthRefreshReqDto;
 import io.envio.auth.domain.view.dto.response.AuthMeResDto;
+import io.envio.auth.domain.view.dto.response.AuthRefreshResDto;
 import io.envio.auth.domain.view.dto.response.OAuthLoginResDto;
 
 import lombok.RequiredArgsConstructor;
@@ -68,6 +75,53 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 			.role(user.getRole().name())
 			.publicKey(publicKey)
 			.build();
+	}
+
+	@Override
+	public AuthRefreshResDto refreshToken(final AuthRefreshReqDto reqDto) {
+		JwtClaims claims = parseRefreshToken(reqDto.refreshToken());
+		String tokenKey = String.valueOf(claims.userId());
+		String savedRefreshToken = tokenRepository.find(tokenKey)
+			.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+
+		if (!matchesToken(savedRefreshToken, reqDto.refreshToken())) {
+			throw new BusinessException(ErrorCode.UNAUTHORIZED);
+		}
+
+		User user = userQueryService.findById(claims.userId());
+		String accessToken = jwtTokenProvider.createAccessToken(
+			user.getId(),
+			user.getGithubId(),
+			user.getEmail(),
+			user.getRole().name()
+		);
+		String refreshToken = jwtTokenProvider.createRefreshToken(
+			user.getId(),
+			user.getGithubId(),
+			user.getEmail(),
+			user.getRole().name()
+		);
+		tokenRepository.save(tokenKey, refreshToken, jwtProperties.refreshTokenExpiration());
+
+		return AuthRefreshResDto.builder()
+			.accessToken(accessToken)
+			.refreshToken(refreshToken)
+			.build();
+	}
+
+	private JwtClaims parseRefreshToken(final String refreshToken) {
+		try {
+			return jwtTokenProvider.parseRefreshToken(refreshToken);
+		} catch (JwtParsingException exception) {
+			throw new BusinessException(ErrorCode.UNAUTHORIZED);
+		}
+	}
+
+	private boolean matchesToken(final String savedRefreshToken, final String requestRefreshToken) {
+		return MessageDigest.isEqual(
+			savedRefreshToken.getBytes(StandardCharsets.UTF_8),
+			requestRefreshToken.getBytes(StandardCharsets.UTF_8)
+		);
 	}
 
 	private Long getRequiredLongAttribute(final OAuth2User oauth2User, final String attributeName) {

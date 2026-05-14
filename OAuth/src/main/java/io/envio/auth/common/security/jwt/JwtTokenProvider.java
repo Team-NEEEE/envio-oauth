@@ -50,6 +50,14 @@ public class JwtTokenProvider {
 	}
 
 	public JwtClaims parseAccessToken(final String token) {
+		return parseToken(token, TOKEN_TYPE_ACCESS);
+	}
+
+	public JwtClaims parseRefreshToken(final String token) {
+		return parseToken(token, TOKEN_TYPE_REFRESH);
+	}
+
+	private JwtClaims parseToken(final String token, final String expectedTokenType) {
 		String[] tokenParts = token.split("\\.");
 		if (tokenParts.length != 3) {
 			throw new JwtParsingException("Invalid JWT format.");
@@ -61,7 +69,7 @@ public class JwtTokenProvider {
 
 		JsonNode payload = decodeJson(tokenParts[1]);
 		validateExpiration(payload);
-		validateAccessTokenType(payload);
+		validateTokenType(payload, expectedTokenType);
 
 		return new JwtClaims(
 			getRequiredLongClaim(payload, "userId"),
@@ -142,8 +150,8 @@ public class JwtTokenProvider {
 		}
 	}
 
-	private void validateAccessTokenType(final JsonNode payload) {
-		if (!TOKEN_TYPE_ACCESS.equals(payload.path("tokenType").asText())) {
+	private void validateTokenType(final JsonNode payload, final String expectedTokenType) {
+		if (!expectedTokenType.equals(payload.path("tokenType").asText())) {
 			throw new JwtParsingException("Invalid JWT token type.");
 		}
 	}
