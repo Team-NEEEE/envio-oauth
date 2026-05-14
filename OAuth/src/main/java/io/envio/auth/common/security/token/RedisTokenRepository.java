@@ -27,6 +27,11 @@ public class RedisTokenRepository implements TokenRepository {
 	}
 
 	@Override
+	public Optional<String> findAndDelete(final String key) {
+		return Optional.ofNullable(redisTemplate.opsForValue().getAndDelete(createKey(key)));
+	}
+
+	@Override
 	public void delete(final String key) {
 		redisTemplate.delete(createKey(key));
 	}

@@ -155,7 +155,7 @@ class ViewAuthServiceImplTest {
 		final JwtClaims claims = new JwtClaims(1L, "123456", "user@example.com", "VIEWER");
 		final User user = createUser();
 		when(jwtTokenProvider.parseRefreshToken("refresh-token")).thenReturn(claims);
-		when(tokenRepository.find("1")).thenReturn(Optional.of("refresh-token"));
+		when(tokenRepository.findAndDelete("1")).thenReturn(Optional.of("refresh-token"));
 		when(userQueryService.findById(1L)).thenReturn(user);
 		when(jwtTokenProvider.createAccessToken(1L, "123456", "user@example.com", "VIEWER"))
 			.thenReturn("new-access-token");
@@ -179,7 +179,26 @@ class ViewAuthServiceImplTest {
 		final AuthRefreshReqDto reqDto = new AuthRefreshReqDto("refresh-token");
 		final JwtClaims claims = new JwtClaims(1L, "123456", "user@example.com", "VIEWER");
 		when(jwtTokenProvider.parseRefreshToken("refresh-token")).thenReturn(claims);
-		when(tokenRepository.find("1")).thenReturn(Optional.of("other-refresh-token"));
+		when(tokenRepository.findAndDelete("1")).thenReturn(Optional.of("other-refresh-token"));
+
+		// when
+		final BusinessException exception = assertThrows(
+			BusinessException.class,
+			() -> viewAuthService.refreshToken(reqDto)
+		);
+
+		// then
+		assertEquals(ErrorCode.UNAUTHORIZED, exception.getErrorCode());
+	}
+
+	@Test
+	@DisplayName("Redis에 저장된 refreshToken이 없으면 인증 예외를 던진다")
+	void refreshTokenThrowsExceptionWhenStoredTokenNotFound() {
+		// given
+		final AuthRefreshReqDto reqDto = new AuthRefreshReqDto("refresh-token");
+		final JwtClaims claims = new JwtClaims(1L, "123456", "user@example.com", "VIEWER");
+		when(jwtTokenProvider.parseRefreshToken("refresh-token")).thenReturn(claims);
+		when(tokenRepository.findAndDelete("1")).thenReturn(Optional.empty());
 
 		// when
 		final BusinessException exception = assertThrows(

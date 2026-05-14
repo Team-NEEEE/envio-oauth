@@ -81,10 +81,10 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 	public AuthRefreshResDto refreshToken(final AuthRefreshReqDto reqDto) {
 		JwtClaims claims = parseRefreshToken(reqDto.refreshToken());
 		String tokenKey = String.valueOf(claims.userId());
-		String savedRefreshToken = tokenRepository.find(tokenKey)
+		String savedRefreshToken = tokenRepository.findAndDelete(tokenKey)
 			.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
 
-		if (!matchesToken(savedRefreshToken, reqDto.refreshToken())) {
+		if (!secureEquals(savedRefreshToken, reqDto.refreshToken())) {
 			throw new BusinessException(ErrorCode.UNAUTHORIZED);
 		}
 
@@ -117,7 +117,7 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 		}
 	}
 
-	private boolean matchesToken(final String savedRefreshToken, final String requestRefreshToken) {
+	private boolean secureEquals(final String savedRefreshToken, final String requestRefreshToken) {
 		return MessageDigest.isEqual(
 			savedRefreshToken.getBytes(StandardCharsets.UTF_8),
 			requestRefreshToken.getBytes(StandardCharsets.UTF_8)
