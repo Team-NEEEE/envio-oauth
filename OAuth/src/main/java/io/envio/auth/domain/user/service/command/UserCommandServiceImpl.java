@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import io.envio.auth.domain.user.entity.User;
+import io.envio.auth.domain.user.entity.UserRole;
 import io.envio.auth.domain.user.repository.UserRepository;
 
 import lombok.AccessLevel;
@@ -22,6 +23,14 @@ public class UserCommandServiceImpl implements UserCommandService {
 	public User save(final User user) {
 		User savedUser = userRepository.save(user);
 		log.info("[User] 사용자 저장 성공 - userId: {}, githubId: {}", savedUser.getId(), savedUser.getGithubId());
+		return savedUser;
+	}
+
+	@Override
+	public User updateRole(final User user, final UserRole role) {
+		user.updateRole(role);
+		User savedUser = userRepository.saveAndFlush(user);
+		log.info("[User] 사용자 역할 변경 성공 - userId: {}, role: {}", savedUser.getId(), savedUser.getRole());
 		return savedUser;
 	}
 }

@@ -19,10 +19,14 @@ import io.envio.auth.common.security.jwt.JwtTokenProvider;
 import io.envio.auth.common.security.token.TokenRepository;
 import io.envio.auth.domain.user.entity.User;
 import io.envio.auth.domain.user.entity.UserDevice;
+import io.envio.auth.domain.user.entity.UserRole;
+import io.envio.auth.domain.user.service.command.UserCommandService;
 import io.envio.auth.domain.user.service.query.UserDeviceQueryService;
 import io.envio.auth.domain.user.service.query.UserQueryService;
+import io.envio.auth.domain.view.dto.request.AuthProjectMemberRoleUpdateReqDto;
 import io.envio.auth.domain.view.dto.request.AuthRefreshReqDto;
 import io.envio.auth.domain.view.dto.response.AuthMeResDto;
+import io.envio.auth.domain.view.dto.response.AuthProjectMemberRoleUpdateResDto;
 import io.envio.auth.domain.view.dto.response.AuthRefreshResDto;
 import io.envio.auth.domain.view.dto.response.OAuthLoginResDto;
 
@@ -37,6 +41,7 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 	private final JwtTokenProvider jwtTokenProvider;
 	private final JwtProperties jwtProperties;
 	private final TokenRepository tokenRepository;
+	private final UserCommandService userCommandService;
 	private final UserQueryService userQueryService;
 	private final UserDeviceQueryService userDeviceQueryService;
 
@@ -123,6 +128,32 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 	@Override
 	public void logout(final JwtClaims claims) {
 		tokenRepository.delete(tokenKeyOf(claims.userId()));
+	}
+
+	@Override
+	public AuthProjectMemberRoleUpdateResDto updateProjectMemberRole(
+		final JwtClaims claims,
+		final Long projectId,
+		final Long userId,
+		final AuthProjectMemberRoleUpdateReqDto reqDto
+	) {
+		validateRoleChangePermission(claims);
+		User targetUser = userQueryService.findById(userId);
+		User updatedUser = userCommandService.updateRole(targetUser, reqDto.role());
+
+		return AuthProjectMemberRoleUpdateResDto.builder()
+			.projectId(projectId)
+			.userId(updatedUser.getId())
+			.role(updatedUser.getRole().name())
+			.updatedAt(updatedUser.getUpdatedAt())
+			.build();
+	}
+
+	private void validateRoleChangePermission(final JwtClaims claims) {
+		User requester = userQueryService.findById(claims.userId());
+		if (requester.getRole() != UserRole.OWNER) {
+			throw new BusinessException(ErrorCode.ACCESS_DENIED);
+		}
 	}
 
 	private String tokenKeyOf(final Long userId) {

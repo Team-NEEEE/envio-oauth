@@ -30,10 +30,13 @@ import io.envio.auth.common.security.token.TokenRepository;
 import io.envio.auth.domain.user.entity.User;
 import io.envio.auth.domain.user.entity.UserDevice;
 import io.envio.auth.domain.user.entity.UserRole;
+import io.envio.auth.domain.user.service.command.UserCommandService;
 import io.envio.auth.domain.user.service.query.UserDeviceQueryService;
 import io.envio.auth.domain.user.service.query.UserQueryService;
+import io.envio.auth.domain.view.dto.request.AuthProjectMemberRoleUpdateReqDto;
 import io.envio.auth.domain.view.dto.request.AuthRefreshReqDto;
 import io.envio.auth.domain.view.dto.response.AuthMeResDto;
+import io.envio.auth.domain.view.dto.response.AuthProjectMemberRoleUpdateResDto;
 import io.envio.auth.domain.view.dto.response.AuthRefreshResDto;
 import io.envio.auth.domain.view.dto.response.OAuthLoginResDto;
 
@@ -51,6 +54,9 @@ class ViewAuthServiceImplTest {
 
 	@Mock
 	private TokenRepository tokenRepository;
+
+	@Mock
+	private UserCommandService userCommandService;
 
 	@Mock
 	private UserQueryService userQueryService;
@@ -305,12 +311,66 @@ class ViewAuthServiceImplTest {
 		assertEquals(redisException, exception);
 	}
 
+	@Test
+	@DisplayName("OWNER는 프로젝트 멤버의 역할을 변경할 수 있다")
+	void updateProjectMemberRoleReturnsUpdatedRoleWhenRequesterIsOwner() {
+		// given
+		final JwtClaims claims = new JwtClaims(1L, "123456", "owner@example.com", "OWNER");
+		final AuthProjectMemberRoleUpdateReqDto reqDto = new AuthProjectMemberRoleUpdateReqDto(UserRole.ADMIN);
+		final User requester = createUser(1L, UserRole.OWNER);
+		final User targetUser = createUser(3L, UserRole.VIEWER);
+		when(userQueryService.findById(1L)).thenReturn(requester);
+		when(userQueryService.findById(3L)).thenReturn(targetUser);
+		when(userCommandService.updateRole(targetUser, UserRole.ADMIN)).thenAnswer(invocation -> {
+			targetUser.updateRole(UserRole.ADMIN);
+			return targetUser;
+		});
+
+		// when
+		final AuthProjectMemberRoleUpdateResDto result = viewAuthService.updateProjectMemberRole(
+			claims,
+			10L,
+			3L,
+			reqDto
+		);
+
+		// then
+		assertEquals(10L, result.projectId());
+		assertEquals(3L, result.userId());
+		assertEquals("ADMIN", result.role());
+		verify(userCommandService).updateRole(targetUser, UserRole.ADMIN);
+	}
+
+	@Test
+	@DisplayName("OWNER가 아닌 사용자가 역할 변경을 요청하면 접근 거부 예외를 던진다")
+	void updateProjectMemberRoleThrowsExceptionWhenRequesterIsNotOwner() {
+		// given
+		final JwtClaims claims = new JwtClaims(1L, "123456", "user@example.com", "VIEWER");
+		final AuthProjectMemberRoleUpdateReqDto reqDto = new AuthProjectMemberRoleUpdateReqDto(UserRole.ADMIN);
+		final User requester = createUser(1L, UserRole.VIEWER);
+		when(userQueryService.findById(1L)).thenReturn(requester);
+
+		// when
+		final BusinessException exception = assertThrows(
+			BusinessException.class,
+			() -> viewAuthService.updateProjectMemberRole(claims, 10L, 2L, reqDto)
+		);
+
+		// then
+		assertEquals(ErrorCode.ACCESS_DENIED, exception.getErrorCode());
+		verify(userQueryService, never()).findById(2L);
+	}
+
 	private User createUser() {
+		return createUser(1L, UserRole.VIEWER);
+	}
+
+	private User createUser(final Long userId, final UserRole role) {
 		return User.builder()
-			.id(1L)
+			.id(userId)
 			.githubId("123456")
 			.email("user@example.com")
-			.role(UserRole.VIEWER)
+			.role(role)
 			.build();
 	}
 

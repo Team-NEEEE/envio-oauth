@@ -3,6 +3,7 @@ package io.envio.auth.domain.view.controller;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -30,7 +31,10 @@ import io.envio.auth.common.error.ErrorCode;
 import io.envio.auth.common.error.exception.BusinessException;
 import io.envio.auth.common.error.exception.handler.GlobalExceptionHandler;
 import io.envio.auth.common.security.jwt.JwtClaims;
+import io.envio.auth.domain.user.entity.UserRole;
+import io.envio.auth.domain.view.dto.request.AuthProjectMemberRoleUpdateReqDto;
 import io.envio.auth.domain.view.dto.request.AuthRefreshReqDto;
+import io.envio.auth.domain.view.dto.response.AuthProjectMemberRoleUpdateResDto;
 import io.envio.auth.domain.view.dto.response.AuthRefreshResDto;
 import io.envio.auth.domain.view.service.ViewAuthService;
 
@@ -129,6 +133,45 @@ class ViewAuthControllerTest {
 		mockMvc.perform(post("/api/auth/logout")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{}"))
+			.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	@DisplayName("프로젝트 멤버 역할 변경 요청이 성공하면 200 응답을 반환한다")
+	void updateProjectMemberRoleReturnsOk() throws Exception {
+		// given
+		final JwtClaims claims = new JwtClaims(1L, "123456", "owner@example.com", "OWNER");
+		final AuthProjectMemberRoleUpdateReqDto reqDto = new AuthProjectMemberRoleUpdateReqDto(UserRole.ADMIN);
+		final AuthProjectMemberRoleUpdateResDto resDto = AuthProjectMemberRoleUpdateResDto.builder()
+			.projectId(10L)
+			.userId(3L)
+			.role("ADMIN")
+			.updatedAt(null)
+			.build();
+		when(viewAuthService.updateProjectMemberRole(claims, 10L, 3L, reqDto)).thenReturn(resDto);
+
+		// when & then
+		mockMvc.perform(patch("/api/auth/projects/{projectId}/members/{userId}/role", 10L, 3L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(reqDto))
+				.requestAttr("claims", claims))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.message").value("멤버 역할이 변경되었습니다."))
+			.andExpect(jsonPath("$.data.project_id").value(10L))
+			.andExpect(jsonPath("$.data.user_id").value(3L))
+			.andExpect(jsonPath("$.data.role").value("ADMIN"));
+	}
+
+	@Test
+	@DisplayName("인증 정보 없이 프로젝트 멤버 역할 변경을 요청하면 401 응답을 반환한다")
+	void updateProjectMemberRoleReturnsUnauthorizedWhenClaimsIsMissing() throws Exception {
+		// given
+		final AuthProjectMemberRoleUpdateReqDto reqDto = new AuthProjectMemberRoleUpdateReqDto(UserRole.ADMIN);
+
+		// when & then
+		mockMvc.perform(patch("/api/auth/projects/{projectId}/members/{userId}/role", 10L, 3L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(reqDto)))
 			.andExpect(status().isUnauthorized());
 	}
 

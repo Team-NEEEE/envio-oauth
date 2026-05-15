@@ -3,6 +3,8 @@ package io.envio.auth.domain.view.controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,8 +14,10 @@ import io.envio.auth.common.error.ErrorCode;
 import io.envio.auth.common.error.exception.BusinessException;
 import io.envio.auth.common.response.BaseResponse;
 import io.envio.auth.common.security.jwt.JwtClaims;
+import io.envio.auth.domain.view.dto.request.AuthProjectMemberRoleUpdateReqDto;
 import io.envio.auth.domain.view.dto.request.AuthRefreshReqDto;
 import io.envio.auth.domain.view.dto.response.AuthMeResDto;
+import io.envio.auth.domain.view.dto.response.AuthProjectMemberRoleUpdateResDto;
 import io.envio.auth.domain.view.dto.response.AuthRefreshResDto;
 import io.envio.auth.domain.view.service.ViewAuthService;
 
@@ -28,6 +32,7 @@ public class ViewAuthController {
 	private static final String ME_SUCCESS_MESSAGE = "사용자 정보 조회에 성공했습니다.";
 	private static final String REFRESH_SUCCESS_MESSAGE = "토큰이 재발급되었습니다.";
 	private static final String LOGOUT_SUCCESS_MESSAGE = "로그아웃이 완료되었습니다.";
+	private static final String ROLE_UPDATE_SUCCESS_MESSAGE = "멤버 역할이 변경되었습니다.";
 
 	private final ViewAuthService viewAuthService;
 
@@ -62,5 +67,26 @@ public class ViewAuthController {
 
 		viewAuthService.logout(claims);
 		return ResponseEntity.ok(BaseResponse.ok(LOGOUT_SUCCESS_MESSAGE, null));
+	}
+
+	@PatchMapping("/projects/{projectId}/members/{userId}/role")
+	public ResponseEntity<BaseResponse<AuthProjectMemberRoleUpdateResDto>> updateProjectMemberRole(
+		@AuthenticationPrincipal final JwtClaims claims,
+		@PathVariable final Long projectId,
+		@PathVariable final Long userId,
+		@Valid @RequestBody final AuthProjectMemberRoleUpdateReqDto reqDto
+	) {
+		// Spring Security normally blocks unauthenticated requests before this point.
+		if (claims == null) {
+			throw new BusinessException(ErrorCode.UNAUTHORIZED);
+		}
+
+		AuthProjectMemberRoleUpdateResDto response = viewAuthService.updateProjectMemberRole(
+			claims,
+			projectId,
+			userId,
+			reqDto
+		);
+		return ResponseEntity.ok(BaseResponse.ok(ROLE_UPDATE_SUCCESS_MESSAGE, response));
 	}
 }
