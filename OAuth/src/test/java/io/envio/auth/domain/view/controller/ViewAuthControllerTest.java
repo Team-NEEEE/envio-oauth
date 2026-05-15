@@ -146,7 +146,7 @@ class ViewAuthControllerTest {
 		final AuthProjectMemberRoleUpdateResDto resDto = AuthProjectMemberRoleUpdateResDto.builder()
 			.projectId(10L)
 			.userId(3L)
-			.role("ADMIN")
+			.role(UserRole.ADMIN)
 			.updatedAt(null)
 			.build();
 		when(viewAuthService.updateProjectMemberRole(claims, 10L, 3L, reqDto)).thenReturn(resDto);

@@ -131,25 +131,34 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 	}
 
 	@Override
+	@Transactional
 	public AuthProjectMemberRoleUpdateResDto updateProjectMemberRole(
 		final JwtClaims claims,
 		final Long projectId,
 		final Long userId,
 		final AuthProjectMemberRoleUpdateReqDto reqDto
 	) {
-		validateRoleChangePermission(claims);
+		validateRoleChangePermission(claims, userId, reqDto.role());
 		User targetUser = userQueryService.findById(userId);
 		User updatedUser = userCommandService.updateRole(targetUser, reqDto.role());
 
 		return AuthProjectMemberRoleUpdateResDto.builder()
 			.projectId(projectId)
 			.userId(updatedUser.getId())
-			.role(updatedUser.getRole().name())
+			.role(updatedUser.getRole())
 			.updatedAt(updatedUser.getUpdatedAt())
 			.build();
 	}
 
-	private void validateRoleChangePermission(final JwtClaims claims) {
+	private void validateRoleChangePermission(
+		final JwtClaims claims,
+		final Long targetUserId,
+		final UserRole targetRole
+	) {
+		if (claims.userId().equals(targetUserId) || targetRole == UserRole.OWNER) {
+			throw new BusinessException(ErrorCode.ACCESS_DENIED);
+		}
+
 		User requester = userQueryService.findById(claims.userId());
 		if (requester.getRole() != UserRole.OWNER) {
 			throw new BusinessException(ErrorCode.ACCESS_DENIED);

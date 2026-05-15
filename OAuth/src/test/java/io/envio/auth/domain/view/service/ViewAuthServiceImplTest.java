@@ -351,7 +351,7 @@ class ViewAuthServiceImplTest {
 		// then
 		assertEquals(10L, result.projectId());
 		assertEquals(3L, result.userId());
-		assertEquals("ADMIN", result.role());
+		assertEquals(UserRole.ADMIN, result.role());
 		verify(userCommandService).updateRole(targetUser, UserRole.ADMIN);
 	}
 
@@ -372,6 +372,43 @@ class ViewAuthServiceImplTest {
 
 		// then
 		assertEquals(ErrorCode.ACCESS_DENIED, exception.getErrorCode());
+		verify(userQueryService, never()).findById(2L);
+	}
+
+	@Test
+	@DisplayName("자기 자신의 역할 변경을 요청하면 접근 거부 예외를 던진다")
+	void updateProjectMemberRoleThrowsExceptionWhenRequesterChangesOwnRole() {
+		// given
+		final JwtClaims claims = new JwtClaims(1L, "123456", "owner@example.com", "OWNER");
+		final AuthProjectMemberRoleUpdateReqDto reqDto = new AuthProjectMemberRoleUpdateReqDto(UserRole.ADMIN);
+
+		// when
+		final BusinessException exception = assertThrows(
+			BusinessException.class,
+			() -> viewAuthService.updateProjectMemberRole(claims, 10L, 1L, reqDto)
+		);
+
+		// then
+		assertEquals(ErrorCode.ACCESS_DENIED, exception.getErrorCode());
+		verify(userQueryService, never()).findById(1L);
+	}
+
+	@Test
+	@DisplayName("OWNER 역할 부여를 요청하면 접근 거부 예외를 던진다")
+	void updateProjectMemberRoleThrowsExceptionWhenTargetRoleIsOwner() {
+		// given
+		final JwtClaims claims = new JwtClaims(1L, "123456", "owner@example.com", "OWNER");
+		final AuthProjectMemberRoleUpdateReqDto reqDto = new AuthProjectMemberRoleUpdateReqDto(UserRole.OWNER);
+
+		// when
+		final BusinessException exception = assertThrows(
+			BusinessException.class,
+			() -> viewAuthService.updateProjectMemberRole(claims, 10L, 2L, reqDto)
+		);
+
+		// then
+		assertEquals(ErrorCode.ACCESS_DENIED, exception.getErrorCode());
+		verify(userQueryService, never()).findById(1L);
 		verify(userQueryService, never()).findById(2L);
 	}
 
