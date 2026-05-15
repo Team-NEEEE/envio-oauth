@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
+import org.springframework.lang.Nullable;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -184,11 +185,12 @@ class ViewAuthControllerTest {
 		}
 
 		@Override
+		@Nullable
 		public Object resolveArgument(
 			final MethodParameter parameter,
-			final ModelAndViewContainer mavContainer,
+			@Nullable final ModelAndViewContainer mavContainer,
 			final NativeWebRequest webRequest,
-			final WebDataBinderFactory binderFactory
+			@Nullable final WebDataBinderFactory binderFactory
 		) {
 			return webRequest.getAttribute("claims", NativeWebRequest.SCOPE_REQUEST);
 		}

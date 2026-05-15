@@ -118,6 +118,22 @@ class ViewAuthServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("OAuth 인증 principal이 OAuth2User가 아니면 명확한 예외를 던진다")
+	void issueOAuthLoginTokensThrowsExceptionWhenPrincipalIsNotOAuth2User() {
+		// given
+		when(authentication.getPrincipal()).thenReturn("invalid-principal");
+
+		// when
+		final IllegalStateException exception = assertThrows(
+			IllegalStateException.class,
+			() -> viewAuthService.issueOAuthLoginTokens(authentication)
+		);
+
+		// then
+		assertEquals("OAuth2User principal is missing from authentication", exception.getMessage());
+	}
+
+	@Test
 	@DisplayName("JWT claims의 사용자 ID로 현재 사용자 정보를 조회한다")
 	void getCurrentUserReturnsAuthenticatedUser() {
 		// given
@@ -319,12 +335,10 @@ class ViewAuthServiceImplTest {
 		final AuthProjectMemberRoleUpdateReqDto reqDto = new AuthProjectMemberRoleUpdateReqDto(UserRole.ADMIN);
 		final User requester = createUser(1L, UserRole.OWNER);
 		final User targetUser = createUser(3L, UserRole.VIEWER);
+		final User updatedUser = createUser(3L, UserRole.ADMIN);
 		when(userQueryService.findById(1L)).thenReturn(requester);
 		when(userQueryService.findById(3L)).thenReturn(targetUser);
-		when(userCommandService.updateRole(targetUser, UserRole.ADMIN)).thenAnswer(invocation -> {
-			targetUser.updateRole(UserRole.ADMIN);
-			return targetUser;
-		});
+		when(userCommandService.updateRole(targetUser, UserRole.ADMIN)).thenReturn(updatedUser);
 
 		// when
 		final AuthProjectMemberRoleUpdateResDto result = viewAuthService.updateProjectMemberRole(

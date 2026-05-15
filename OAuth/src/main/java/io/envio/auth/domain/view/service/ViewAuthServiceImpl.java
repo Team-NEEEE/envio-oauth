@@ -47,8 +47,8 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 
 	@Override
 	public OAuthLoginResDto issueOAuthLoginTokens(final Authentication authentication) {
-		OAuth2User oauth2User = (OAuth2User)authentication.getPrincipal();
-		Long userId = getRequiredLongAttribute(oauth2User, "userId");
+		OAuth2User oauth2User = getRequiredOAuth2User(authentication);
+		Long userId = getRequiredUserIdAttribute(oauth2User);
 		String githubId = getRequiredStringAttribute(oauth2User, "githubId");
 		String email = getRequiredStringAttribute(oauth2User, "email");
 		String role = getRequiredStringAttribute(oauth2User, "role");
@@ -188,10 +188,19 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 		}
 	}
 
-	private Long getRequiredLongAttribute(final OAuth2User oauth2User, final String attributeName) {
-		return Optional.ofNullable((Number)oauth2User.getAttribute(attributeName))
+	private OAuth2User getRequiredOAuth2User(final Authentication authentication) {
+		Object principal = authentication.getPrincipal();
+		if (principal instanceof OAuth2User oauth2User) {
+			return oauth2User;
+		}
+
+		throw new IllegalStateException("OAuth2User principal is missing from authentication");
+	}
+
+	private Long getRequiredUserIdAttribute(final OAuth2User oauth2User) {
+		return Optional.ofNullable((Number)oauth2User.getAttribute("userId"))
 			.map(Number::longValue)
-			.orElseThrow(() -> new IllegalStateException(attributeName + " attribute is missing from OAuth2User"));
+			.orElseThrow(() -> new IllegalStateException("userId attribute is missing from OAuth2User"));
 	}
 
 	private String getRequiredStringAttribute(final OAuth2User oauth2User, final String attributeName) {
