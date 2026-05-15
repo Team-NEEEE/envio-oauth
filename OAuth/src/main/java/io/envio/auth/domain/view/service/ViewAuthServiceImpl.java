@@ -138,7 +138,6 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 		final Long userId,
 		final AuthProjectMemberRoleUpdateReqDto reqDto
 	) {
-		// TODO: projectId is currently kept for API compatibility and future project-scoped RBAC expansion.
 		validateRoleChangePermission(claims, userId, reqDto.role());
 		User targetUser = userQueryService.findById(userId);
 		validateTargetRole(targetUser);
