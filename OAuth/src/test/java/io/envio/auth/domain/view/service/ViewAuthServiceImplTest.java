@@ -30,10 +30,13 @@ import io.envio.auth.common.security.token.TokenRepository;
 import io.envio.auth.domain.user.entity.User;
 import io.envio.auth.domain.user.entity.UserDevice;
 import io.envio.auth.domain.user.entity.UserRole;
+import io.envio.auth.domain.user.service.command.UserCommandService;
 import io.envio.auth.domain.user.service.query.UserDeviceQueryService;
 import io.envio.auth.domain.user.service.query.UserQueryService;
+import io.envio.auth.domain.view.dto.request.AuthProjectMemberRoleUpdateReqDto;
 import io.envio.auth.domain.view.dto.request.AuthRefreshReqDto;
 import io.envio.auth.domain.view.dto.response.AuthMeResDto;
+import io.envio.auth.domain.view.dto.response.AuthProjectMemberRoleUpdateResDto;
 import io.envio.auth.domain.view.dto.response.AuthRefreshResDto;
 import io.envio.auth.domain.view.dto.response.OAuthLoginResDto;
 
@@ -51,6 +54,9 @@ class ViewAuthServiceImplTest {
 
 	@Mock
 	private TokenRepository tokenRepository;
+
+	@Mock
+	private UserCommandService userCommandService;
 
 	@Mock
 	private UserQueryService userQueryService;
@@ -109,6 +115,22 @@ class ViewAuthServiceImplTest {
 
 		// then
 		assertEquals("userId attribute is missing from OAuth2User", exception.getMessage());
+	}
+
+	@Test
+	@DisplayName("OAuth 인증 principal이 OAuth2User가 아니면 명확한 예외를 던진다")
+	void issueOAuthLoginTokensThrowsExceptionWhenPrincipalIsNotOAuth2User() {
+		// given
+		when(authentication.getPrincipal()).thenReturn("invalid-principal");
+
+		// when
+		final IllegalStateException exception = assertThrows(
+			IllegalStateException.class,
+			() -> viewAuthService.issueOAuthLoginTokens(authentication)
+		);
+
+		// then
+		assertEquals("OAuth2User principal is missing from authentication", exception.getMessage());
 	}
 
 	@Test
@@ -305,12 +327,123 @@ class ViewAuthServiceImplTest {
 		assertEquals(redisException, exception);
 	}
 
+	@Test
+	@DisplayName("OWNER는 프로젝트 멤버의 역할을 변경할 수 있다")
+	void updateProjectMemberRoleReturnsUpdatedRoleWhenRequesterIsOwner() {
+		// given
+		final JwtClaims claims = new JwtClaims(1L, "123456", "owner@example.com", "OWNER");
+		final AuthProjectMemberRoleUpdateReqDto reqDto = new AuthProjectMemberRoleUpdateReqDto(UserRole.ADMIN);
+		final User requester = createUser(1L, UserRole.OWNER);
+		final User targetUser = createUser(3L, UserRole.VIEWER);
+		final User updatedUser = createUser(3L, UserRole.ADMIN);
+		when(userQueryService.findById(1L)).thenReturn(requester);
+		when(userQueryService.findById(3L)).thenReturn(targetUser);
+		when(userCommandService.updateRole(targetUser, UserRole.ADMIN)).thenReturn(updatedUser);
+
+		// when
+		final AuthProjectMemberRoleUpdateResDto result = viewAuthService.updateProjectMemberRole(
+			claims,
+			10L,
+			3L,
+			reqDto
+		);
+
+		// then
+		assertEquals(10L, result.projectId());
+		assertEquals(3L, result.userId());
+		assertEquals(UserRole.ADMIN, result.role());
+		verify(userCommandService).updateRole(targetUser, UserRole.ADMIN);
+	}
+
+	@Test
+	@DisplayName("OWNER가 아닌 사용자가 역할 변경을 요청하면 접근 거부 예외를 던진다")
+	void updateProjectMemberRoleThrowsExceptionWhenRequesterIsNotOwner() {
+		// given
+		final JwtClaims claims = new JwtClaims(1L, "123456", "user@example.com", "VIEWER");
+		final AuthProjectMemberRoleUpdateReqDto reqDto = new AuthProjectMemberRoleUpdateReqDto(UserRole.ADMIN);
+		final User requester = createUser(1L, UserRole.VIEWER);
+		when(userQueryService.findById(1L)).thenReturn(requester);
+
+		// when
+		final BusinessException exception = assertThrows(
+			BusinessException.class,
+			() -> viewAuthService.updateProjectMemberRole(claims, 10L, 2L, reqDto)
+		);
+
+		// then
+		assertEquals(ErrorCode.ACCESS_DENIED, exception.getErrorCode());
+		verify(userQueryService, never()).findById(2L);
+	}
+
+	@Test
+	@DisplayName("자기 자신의 역할 변경을 요청하면 접근 거부 예외를 던진다")
+	void updateProjectMemberRoleThrowsExceptionWhenRequesterChangesOwnRole() {
+		// given
+		final JwtClaims claims = new JwtClaims(1L, "123456", "owner@example.com", "OWNER");
+		final AuthProjectMemberRoleUpdateReqDto reqDto = new AuthProjectMemberRoleUpdateReqDto(UserRole.ADMIN);
+
+		// when
+		final BusinessException exception = assertThrows(
+			BusinessException.class,
+			() -> viewAuthService.updateProjectMemberRole(claims, 10L, 1L, reqDto)
+		);
+
+		// then
+		assertEquals(ErrorCode.ACCESS_DENIED, exception.getErrorCode());
+		verify(userQueryService, never()).findById(1L);
+	}
+
+	@Test
+	@DisplayName("OWNER 역할 부여를 요청하면 접근 거부 예외를 던진다")
+	void updateProjectMemberRoleThrowsExceptionWhenTargetRoleIsOwner() {
+		// given
+		final JwtClaims claims = new JwtClaims(1L, "123456", "owner@example.com", "OWNER");
+		final AuthProjectMemberRoleUpdateReqDto reqDto = new AuthProjectMemberRoleUpdateReqDto(UserRole.OWNER);
+
+		// when
+		final BusinessException exception = assertThrows(
+			BusinessException.class,
+			() -> viewAuthService.updateProjectMemberRole(claims, 10L, 2L, reqDto)
+		);
+
+		// then
+		assertEquals(ErrorCode.ACCESS_DENIED, exception.getErrorCode());
+		verify(userQueryService, never()).findById(1L);
+		verify(userQueryService, never()).findById(2L);
+	}
+
+	@Test
+	@DisplayName("기존 OWNER 사용자의 역할 변경을 요청하면 접근 거부 예외를 던진다")
+	void updateProjectMemberRoleThrowsExceptionWhenTargetUserIsOwner() {
+		// given
+		final JwtClaims claims = new JwtClaims(1L, "123456", "owner@example.com", "OWNER");
+		final AuthProjectMemberRoleUpdateReqDto reqDto = new AuthProjectMemberRoleUpdateReqDto(UserRole.ADMIN);
+		final User requester = createUser(1L, UserRole.OWNER);
+		final User targetUser = createUser(3L, UserRole.OWNER);
+		when(userQueryService.findById(1L)).thenReturn(requester);
+		when(userQueryService.findById(3L)).thenReturn(targetUser);
+
+		// when
+		final BusinessException exception = assertThrows(
+			BusinessException.class,
+			() -> viewAuthService.updateProjectMemberRole(claims, 10L, 3L, reqDto)
+		);
+
+		// then
+		assertEquals(ErrorCode.ACCESS_DENIED, exception.getErrorCode());
+		verify(userCommandService, never()).updateRole(targetUser, UserRole.ADMIN);
+	}
+
 	private User createUser() {
+		return createUser(1L, UserRole.VIEWER);
+	}
+
+	private User createUser(final Long userId, final UserRole role) {
 		return User.builder()
-			.id(1L)
+			.id(userId)
 			.githubId("123456")
 			.email("user@example.com")
-			.role(UserRole.VIEWER)
+			.role(role)
 			.build();
 	}
 

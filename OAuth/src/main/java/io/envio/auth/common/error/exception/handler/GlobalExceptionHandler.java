@@ -15,6 +15,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -66,6 +67,16 @@ public class GlobalExceptionHandler {
 		LoggingUtils.logValidationException(ex, request);
 		ErrorResponse response = ErrorResponse.of(ErrorCode.INVALID_INPUT, request)
 			.withValidationErrors(ex.getBindingResult());
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(BaseResponse.fail(response));
+	}
+
+	@ExceptionHandler(HandlerMethodValidationException.class)
+	public ResponseEntity<BaseResponse<ErrorResponse>> handleHandlerMethodValidation(
+		HandlerMethodValidationException ex,
+		HttpServletRequest request
+	) {
+		LoggingUtils.logException("HandlerMethodValidationException 발생", ex, request);
+		ErrorResponse response = ErrorResponse.of(ErrorCode.INVALID_INPUT, request);
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(BaseResponse.fail(response));
 	}
 

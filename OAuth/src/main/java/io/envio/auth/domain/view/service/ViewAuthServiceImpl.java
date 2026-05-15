@@ -19,10 +19,14 @@ import io.envio.auth.common.security.jwt.JwtTokenProvider;
 import io.envio.auth.common.security.token.TokenRepository;
 import io.envio.auth.domain.user.entity.User;
 import io.envio.auth.domain.user.entity.UserDevice;
+import io.envio.auth.domain.user.entity.UserRole;
+import io.envio.auth.domain.user.service.command.UserCommandService;
 import io.envio.auth.domain.user.service.query.UserDeviceQueryService;
 import io.envio.auth.domain.user.service.query.UserQueryService;
+import io.envio.auth.domain.view.dto.request.AuthProjectMemberRoleUpdateReqDto;
 import io.envio.auth.domain.view.dto.request.AuthRefreshReqDto;
 import io.envio.auth.domain.view.dto.response.AuthMeResDto;
+import io.envio.auth.domain.view.dto.response.AuthProjectMemberRoleUpdateResDto;
 import io.envio.auth.domain.view.dto.response.AuthRefreshResDto;
 import io.envio.auth.domain.view.dto.response.OAuthLoginResDto;
 
@@ -37,13 +41,14 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 	private final JwtTokenProvider jwtTokenProvider;
 	private final JwtProperties jwtProperties;
 	private final TokenRepository tokenRepository;
+	private final UserCommandService userCommandService;
 	private final UserQueryService userQueryService;
 	private final UserDeviceQueryService userDeviceQueryService;
 
 	@Override
 	public OAuthLoginResDto issueOAuthLoginTokens(final Authentication authentication) {
-		OAuth2User oauth2User = (OAuth2User)authentication.getPrincipal();
-		Long userId = getRequiredLongAttribute(oauth2User, "userId");
+		OAuth2User oauth2User = getRequiredOAuth2User(authentication);
+		Long userId = getRequiredUserIdAttribute(oauth2User);
 		String githubId = getRequiredStringAttribute(oauth2User, "githubId");
 		String email = getRequiredStringAttribute(oauth2User, "email");
 		String role = getRequiredStringAttribute(oauth2User, "role");
@@ -125,6 +130,48 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 		tokenRepository.delete(tokenKeyOf(claims.userId()));
 	}
 
+	@Override
+	@Transactional
+	public AuthProjectMemberRoleUpdateResDto updateProjectMemberRole(
+		final JwtClaims claims,
+		final Long projectId,
+		final Long userId,
+		final AuthProjectMemberRoleUpdateReqDto reqDto
+	) {
+		validateRoleChangePermission(claims, userId, reqDto.role());
+		User targetUser = userQueryService.findById(userId);
+		validateTargetRole(targetUser);
+		User updatedUser = userCommandService.updateRole(targetUser, reqDto.role());
+
+		return AuthProjectMemberRoleUpdateResDto.builder()
+			.projectId(projectId)
+			.userId(updatedUser.getId())
+			.role(updatedUser.getRole())
+			.updatedAt(updatedUser.getUpdatedAt())
+			.build();
+	}
+
+	private void validateRoleChangePermission(
+		final JwtClaims claims,
+		final Long targetUserId,
+		final UserRole targetRole
+	) {
+		if (claims.userId().equals(targetUserId) || targetRole == UserRole.OWNER) {
+			throw new BusinessException(ErrorCode.ACCESS_DENIED);
+		}
+
+		User requester = userQueryService.findById(claims.userId());
+		if (requester.getRole() != UserRole.OWNER) {
+			throw new BusinessException(ErrorCode.ACCESS_DENIED);
+		}
+	}
+
+	private void validateTargetRole(final User targetUser) {
+		if (targetUser.getRole() == UserRole.OWNER) {
+			throw new BusinessException(ErrorCode.ACCESS_DENIED);
+		}
+	}
+
 	private String tokenKeyOf(final Long userId) {
 		return String.valueOf(userId);
 	}
@@ -157,10 +204,19 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 		}
 	}
 
-	private Long getRequiredLongAttribute(final OAuth2User oauth2User, final String attributeName) {
-		return Optional.ofNullable((Number)oauth2User.getAttribute(attributeName))
+	private OAuth2User getRequiredOAuth2User(final Authentication authentication) {
+		Object principal = authentication.getPrincipal();
+		if (principal instanceof OAuth2User oauth2User) {
+			return oauth2User;
+		}
+
+		throw new IllegalStateException("OAuth2User principal is missing from authentication");
+	}
+
+	private Long getRequiredUserIdAttribute(final OAuth2User oauth2User) {
+		return Optional.ofNullable((Number)oauth2User.getAttribute("userId"))
 			.map(Number::longValue)
-			.orElseThrow(() -> new IllegalStateException(attributeName + " attribute is missing from OAuth2User"));
+			.orElseThrow(() -> new IllegalStateException("userId attribute is missing from OAuth2User"));
 	}
 
 	private String getRequiredStringAttribute(final OAuth2User oauth2User, final String attributeName) {

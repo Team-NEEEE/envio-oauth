@@ -54,4 +54,8 @@ public class User extends BaseEntity {
 	public void updateEmail(final String email) {
 		this.email = email;
 	}
+
+	public void updateRole(final UserRole role) {
+		this.role = role;
+	}
 }
