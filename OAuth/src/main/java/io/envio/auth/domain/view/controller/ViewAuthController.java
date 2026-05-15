@@ -2,6 +2,7 @@ package io.envio.auth.domain.view.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,11 +23,13 @@ import io.envio.auth.domain.view.dto.response.AuthRefreshResDto;
 import io.envio.auth.domain.view.service.ViewAuthService;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Validated
 public class ViewAuthController {
 
 	private static final String ME_SUCCESS_MESSAGE = "사용자 정보 조회에 성공했습니다.";
@@ -72,8 +75,8 @@ public class ViewAuthController {
 	@PatchMapping("/projects/{projectId}/members/{userId}/role")
 	public ResponseEntity<BaseResponse<AuthProjectMemberRoleUpdateResDto>> updateProjectMemberRole(
 		@AuthenticationPrincipal final JwtClaims claims,
-		@PathVariable final Long projectId,
-		@PathVariable final Long userId,
+		@PathVariable @Positive final Long projectId,
+		@PathVariable @Positive final Long userId,
 		@Valid @RequestBody final AuthProjectMemberRoleUpdateReqDto reqDto
 	) {
 		// Spring Security normally blocks unauthenticated requests before this point.

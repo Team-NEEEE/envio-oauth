@@ -412,6 +412,28 @@ class ViewAuthServiceImplTest {
 		verify(userQueryService, never()).findById(2L);
 	}
 
+	@Test
+	@DisplayName("기존 OWNER 사용자의 역할 변경을 요청하면 접근 거부 예외를 던진다")
+	void updateProjectMemberRoleThrowsExceptionWhenTargetUserIsOwner() {
+		// given
+		final JwtClaims claims = new JwtClaims(1L, "123456", "owner@example.com", "OWNER");
+		final AuthProjectMemberRoleUpdateReqDto reqDto = new AuthProjectMemberRoleUpdateReqDto(UserRole.ADMIN);
+		final User requester = createUser(1L, UserRole.OWNER);
+		final User targetUser = createUser(3L, UserRole.OWNER);
+		when(userQueryService.findById(1L)).thenReturn(requester);
+		when(userQueryService.findById(3L)).thenReturn(targetUser);
+
+		// when
+		final BusinessException exception = assertThrows(
+			BusinessException.class,
+			() -> viewAuthService.updateProjectMemberRole(claims, 10L, 3L, reqDto)
+		);
+
+		// then
+		assertEquals(ErrorCode.ACCESS_DENIED, exception.getErrorCode());
+		verify(userCommandService, never()).updateRole(targetUser, UserRole.ADMIN);
+	}
+
 	private User createUser() {
 		return createUser(1L, UserRole.VIEWER);
 	}

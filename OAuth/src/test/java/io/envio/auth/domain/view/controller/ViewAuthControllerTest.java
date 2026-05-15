@@ -161,6 +161,8 @@ class ViewAuthControllerTest {
 			.andExpect(jsonPath("$.data.project_id").value(10L))
 			.andExpect(jsonPath("$.data.user_id").value(3L))
 			.andExpect(jsonPath("$.data.role").value("ADMIN"));
+
+		verify(viewAuthService).updateProjectMemberRole(claims, 10L, 3L, reqDto);
 	}
 
 	@Test

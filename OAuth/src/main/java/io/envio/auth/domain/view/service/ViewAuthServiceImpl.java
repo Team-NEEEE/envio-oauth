@@ -140,6 +140,7 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 	) {
 		validateRoleChangePermission(claims, userId, reqDto.role());
 		User targetUser = userQueryService.findById(userId);
+		validateTargetRole(targetUser);
 		User updatedUser = userCommandService.updateRole(targetUser, reqDto.role());
 
 		return AuthProjectMemberRoleUpdateResDto.builder()
@@ -161,6 +162,12 @@ public class ViewAuthServiceImpl implements ViewAuthService {
 
 		User requester = userQueryService.findById(claims.userId());
 		if (requester.getRole() != UserRole.OWNER) {
+			throw new BusinessException(ErrorCode.ACCESS_DENIED);
+		}
+	}
+
+	private void validateTargetRole(final User targetUser) {
+		if (targetUser.getRole() == UserRole.OWNER) {
 			throw new BusinessException(ErrorCode.ACCESS_DENIED);
 		}
 	}
