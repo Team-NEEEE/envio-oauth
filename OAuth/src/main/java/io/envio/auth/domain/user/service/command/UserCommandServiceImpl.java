@@ -30,7 +30,7 @@ public class UserCommandServiceImpl implements UserCommandService {
 	public User updateRole(final User user, final UserRole role) {
 		UserRole previousRole = user.getRole();
 		user.updateRole(role);
-		User savedUser = userRepository.save(user);
+		User savedUser = userRepository.saveAndFlush(user);
 		log.info("[User] 사용자 역할 변경 처리 - userId: {}, role: {} -> {}", savedUser.getId(), previousRole, role);
 		return savedUser;
 	}
