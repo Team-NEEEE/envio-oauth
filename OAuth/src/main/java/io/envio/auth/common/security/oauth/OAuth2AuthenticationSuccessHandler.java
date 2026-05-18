@@ -2,6 +2,7 @@ package io.envio.auth.common.security.oauth;
 
 import java.io.IOException;
 
+import org.jspecify.annotations.NonNull;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -11,7 +12,6 @@ import io.envio.auth.common.config.properties.OAuth2UriProperties;
 import io.envio.auth.domain.view.dto.response.OAuthLoginResDto;
 import io.envio.auth.domain.view.service.ViewAuthService;
 
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -25,10 +25,10 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
 	@Override
 	public void onAuthenticationSuccess(
-		final HttpServletRequest request,
-		final HttpServletResponse response,
-		final Authentication authentication
-	) throws IOException, ServletException {
+		@NonNull final HttpServletRequest request,
+		@NonNull final HttpServletResponse response,
+		@NonNull final Authentication authentication
+	) throws IOException {
 		OAuthLoginResDto responseBody = viewAuthService.issueOAuthLoginTokens(authentication);
 
 		response.sendRedirect(buildFrontendRedirectUri(responseBody));

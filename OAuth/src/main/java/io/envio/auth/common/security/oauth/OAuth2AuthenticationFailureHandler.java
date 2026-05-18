@@ -2,6 +2,7 @@ package io.envio.auth.common.security.oauth;
 
 import java.io.IOException;
 
+import org.jspecify.annotations.NonNull;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.stereotype.Component;
@@ -9,7 +10,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import io.envio.auth.common.config.properties.OAuth2UriProperties;
 
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -26,10 +26,10 @@ public class OAuth2AuthenticationFailureHandler implements AuthenticationFailure
 
 	@Override
 	public void onAuthenticationFailure(
-		final HttpServletRequest request,
-		final HttpServletResponse response,
-		final AuthenticationException exception
-	) throws IOException, ServletException {
+		@NonNull final HttpServletRequest request,
+		@NonNull final HttpServletResponse response,
+		@NonNull final AuthenticationException exception
+	) throws IOException {
 		log.warn("OAuth2 authentication failed", exception);
 
 		response.sendRedirect(buildFrontendFailureRedirectUri());
