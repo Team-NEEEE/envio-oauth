@@ -20,11 +20,11 @@ import io.envio.auth.common.config.properties.OAuth2UriProperties;
 import io.envio.auth.domain.view.dto.response.OAuthLoginResDto;
 import io.envio.auth.domain.view.service.ViewAuthService;
 
-import jakarta.servlet.ServletException;
-
 @ExtendWith(MockitoExtension.class)
 @DisplayName("OAuth2AuthenticationSuccessHandler")
 class OAuth2AuthenticationSuccessHandlerTest {
+
+	private static final String FRONTEND_REDIRECT_URI = "https://frontend.example.com/auth/callback";
 
 	@Mock
 	private ViewAuthService viewAuthService;
@@ -39,14 +39,14 @@ class OAuth2AuthenticationSuccessHandlerTest {
 		OAuth2UriProperties oauth2UriProperties = new OAuth2UriProperties(
 			"/api/auth/oauth",
 			"/api/auth/oauth/*/callback",
-			"http://localhost:3000/auth/callback"
+			FRONTEND_REDIRECT_URI
 		);
 		successHandler = new OAuth2AuthenticationSuccessHandler(viewAuthService, oauth2UriProperties);
 	}
 
 	@Test
 	@DisplayName("OAuth login success redirects to frontend callback")
-	void onAuthenticationSuccessRedirectsToFrontendCallback() throws ServletException, IOException {
+	void onAuthenticationSuccessRedirectsToFrontendCallback() throws IOException {
 		// given
 		final OAuthLoginResDto loginResponse = OAuthLoginResDto.builder()
 			.accessToken("access-token")
@@ -64,7 +64,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
 
 		// then
 		assertEquals(
-			"http://localhost:3000/auth/callback#accessToken=access-token&refreshToken=refresh-token"
+			FRONTEND_REDIRECT_URI + "#accessToken=access-token&refreshToken=refresh-token"
 				+ "&userId=1&email=user@example.com&role=VIEWER",
 			response.getRedirectedUrl()
 		);
