@@ -1,4 +1,10 @@
 server:
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        secure: false
+        same-site: lax
   tomcat:
     accept-count: 1024
     max-connections: 8192
