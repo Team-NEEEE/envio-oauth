@@ -89,7 +89,8 @@ cors:
   allowed-origins:
     - http://localhost:3000
     - http://localhost:5173
-
+    - http://env.io.kr
+    - https://env.io.kr
 auth:
   oauth2:
     authorization-base-uri: /api/auth/oauth
